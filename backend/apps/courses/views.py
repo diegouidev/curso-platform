@@ -354,7 +354,8 @@ class CourseThumbnailView(APIView):
             course.thumbnail.storage.delete(previous)
         return _course_detail(pk)
 
-    @extend_schema(request=None, responses=CourseDetailSerializer, tags=["courses"])
+    # Explicit 200: DELETE defaults to 204 in the schema, but this returns the course.
+    @extend_schema(request=None, responses={200: CourseDetailSerializer}, tags=["courses"])
     def delete(self, request: Request, pk: int) -> Response:
         course = get_object_or_404(Course, pk=pk)
         if course.thumbnail:
