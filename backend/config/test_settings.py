@@ -16,3 +16,6 @@ from .settings import *
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 AUTH_COOKIE_SECURE = False
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {"login": "1000/min"}
+COURSE_IMPORT_ASYNC = False
+GOOGLE_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "test-client-secret"

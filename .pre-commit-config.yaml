@@ -22,7 +22,7 @@ repos:
         files: ^backend/
       - id: black
         name: black
-        entry: bash -c 'cd backend && .venv/bin/black "${@#backend/}"' --
+        entry: bash -c 'cd backend && .venv/bin/black --force-exclude=/migrations/ "${@#backend/}"' --
         language: system
         types: [python]
         files: ^backend/

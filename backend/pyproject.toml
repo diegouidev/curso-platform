@@ -19,7 +19,7 @@ ignore = ["E501", "RUF012"]  # RUF012: Django/DRF class attrs are idiomatic list
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
-"conftest.py" = ["S105"]
+"conftest.py" = ["S105", "S106"]
 "config/test_settings.py" = ["F403", "F405", "S105"]
 
 [tool.ruff.lint.isort]

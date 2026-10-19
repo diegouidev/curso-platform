@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.core",
     "apps.accounts",
+    "apps.drive",
+    "apps.courses",
 ]
 
 MIDDLEWARE = [
@@ -122,6 +124,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
     "DEFAULT_THROTTLE_RATES": {"login": env("LOGIN_THROTTLE_RATE", default="10/min")},
 }
 if DEBUG:
@@ -159,6 +162,9 @@ GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
 GOOGLE_REDIRECT_URI = env(
     "GOOGLE_REDIRECT_URI", default="http://localhost:8000/api/google/callback"
 )
+
+# Course import/sync runs in a background thread; tests run it inline.
+COURSE_IMPORT_ASYNC = env.bool("COURSE_IMPORT_ASYNC", default=True)
 
 # --- Security headers --------------------------------------------------------
 SECURE_CONTENT_TYPE_NOSNIFF = True

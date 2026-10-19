@@ -8,6 +8,8 @@ from apps.core.views import HealthView
 urlpatterns = [
     path("api/health", HealthView.as_view(), name="health"),
     path("api/auth/", include("apps.accounts.urls")),
+    path("api/google/", include("apps.drive.urls")),
+    path("api/", include("apps.courses.urls")),
 ]
 
 if settings.DEBUG:
