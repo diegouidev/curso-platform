@@ -1,11 +1,20 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from .models import Attachment, Course, ImportJob, Lesson, Module
+from . import progress as study
+from .models import Attachment, Course, ImportJob, Lesson, LessonProgress, Module, StudyPreferences
 from .naming import extract_folder_id, make_title
 
 DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/{}"
 DRIVE_FILE_VIEW_URL = "https://drive.google.com/file/d/{}/view"
+# Official Drive embed. Plays because the browser is signed in to the account with access.
+DRIVE_FILE_PREVIEW_URL = "https://drive.google.com/file/d/{}/preview"
+# Native Google files preview on docs.google.com; everything else on the Drive viewer.
+NATIVE_PREVIEW_URLS = {
+    "application/vnd.google-apps.document": "https://docs.google.com/document/d/{}/preview",
+    "application/vnd.google-apps.presentation": "https://docs.google.com/presentation/d/{}/preview",
+    "application/vnd.google-apps.spreadsheet": "https://docs.google.com/spreadsheets/d/{}/preview",
+}
 
 
 class ProgressSerializer(serializers.Serializer):
@@ -71,14 +80,19 @@ class ImportJobSerializer(serializers.ModelSerializer):
 
 class AttachmentSerializer(serializers.ModelSerializer):
     view_url = serializers.SerializerMethodField()
+    preview_url = serializers.SerializerMethodField(help_text="Embeddable preview (iframe).")
 
     class Meta:
         model = Attachment
-        fields = ["id", "title", "drive_file_id", "mime_type", "view_url"]
+        fields = ["id", "title", "drive_file_id", "mime_type", "view_url", "preview_url"]
         read_only_fields = fields
 
     def get_view_url(self, obj: Attachment) -> str:
         return DRIVE_FILE_VIEW_URL.format(obj.drive_file_id)
+
+    def get_preview_url(self, obj: Attachment) -> str:
+        template = NATIVE_PREVIEW_URLS.get(obj.mime_type, DRIVE_FILE_PREVIEW_URL)
+        return template.format(obj.drive_file_id)
 
 
 class LessonSummarySerializer(serializers.ModelSerializer):
@@ -246,3 +260,156 @@ class CourseImportSerializer(serializers.Serializer):
 class CourseImportResponseSerializer(serializers.Serializer):
     course = CourseSerializer()
     job = ImportJobSerializer()
+
+
+# --- Player and progress (phase 4) -------------------------------------------------------
+
+
+class LessonProgressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonProgress
+        fields = ["completed", "completed_at", "last_opened_at", "time_on_page_seconds"]
+        read_only_fields = fields
+
+
+class RefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+
+
+class LessonRefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    module_title = serializers.CharField(source="module.title")
+
+
+class LessonDetailSerializer(serializers.ModelSerializer):
+    """A lesson for the player. Expects `neighbors` (progress.Neighbors) in the context."""
+
+    embed_url = serializers.SerializerMethodField()
+    drive_url = serializers.SerializerMethodField()
+    course = RefSerializer(source="module.course", read_only=True)
+    module = RefSerializer(read_only=True)
+    progress = serializers.SerializerMethodField()
+    attachments = AttachmentSerializer(many=True, read_only=True)
+    module_attachments = AttachmentSerializer(
+        source="module.attachments", many=True, read_only=True
+    )
+    previous = serializers.SerializerMethodField()
+    next = serializers.SerializerMethodField()
+    position = serializers.SerializerMethodField(
+        help_text="1-based position among the playable lessons; null for hidden/missing ones."
+    )
+    total = serializers.SerializerMethodField(help_text="Playable lessons in the course.")
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id",
+            "title",
+            "title_is_custom",
+            "drive_file_id",
+            "drive_name_original",
+            "mime_type",
+            "duration_seconds",
+            "is_hidden",
+            "missing_in_drive",
+            "embed_url",
+            "drive_url",
+            "course",
+            "module",
+            "progress",
+            "attachments",
+            "module_attachments",
+            "previous",
+            "next",
+            "position",
+            "total",
+        ]
+        read_only_fields = fields
+
+    @property
+    def _neighbors(self) -> study.Neighbors:
+        return self.context["neighbors"]
+
+    def get_embed_url(self, obj: Lesson) -> str:
+        return DRIVE_FILE_PREVIEW_URL.format(obj.drive_file_id)
+
+    def get_drive_url(self, obj: Lesson) -> str:
+        return DRIVE_FILE_VIEW_URL.format(obj.drive_file_id)
+
+    @extend_schema_field(LessonProgressSerializer)
+    def get_progress(self, obj: Lesson) -> dict:
+        return LessonProgressSerializer(study.get_progress(obj)).data
+
+    @extend_schema_field(LessonRefSerializer(allow_null=True))
+    def get_previous(self, obj: Lesson) -> dict | None:
+        lesson = self._neighbors.previous
+        return LessonRefSerializer(lesson).data if lesson else None
+
+    @extend_schema_field(LessonRefSerializer(allow_null=True))
+    def get_next(self, obj: Lesson) -> dict | None:
+        lesson = self._neighbors.next
+        return LessonRefSerializer(lesson).data if lesson else None
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_position(self, obj: Lesson) -> int | None:
+        return self._neighbors.position
+
+    def get_total(self, obj: Lesson) -> int:
+        return self._neighbors.total
+
+
+class HeartbeatSerializer(serializers.Serializer):
+    seconds = serializers.IntegerField(
+        min_value=0,
+        help_text=(
+            "Seconds with the tab visible since the last heartbeat; 0 when the page opens. "
+            f"Capped at {study.MAX_HEARTBEAT_SECONDS}."
+        ),
+    )
+
+
+class CourseRefSerializer(serializers.ModelSerializer):
+    thumbnail_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = ["id", "title", "thumbnail_url"]
+        read_only_fields = fields
+
+    def get_thumbnail_url(self, obj: Course) -> str | None:
+        return obj.thumbnail.url if obj.thumbnail else None
+
+
+class ContinueLessonSerializer(serializers.ModelSerializer):
+    course = CourseRefSerializer(source="module.course", read_only=True)
+    module = RefSerializer(read_only=True)
+    progress = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = ["id", "title", "duration_seconds", "course", "module", "progress"]
+        read_only_fields = fields
+
+    @extend_schema_field(LessonProgressSerializer)
+    def get_progress(self, obj: Lesson) -> dict:
+        return LessonProgressSerializer(study.get_progress(obj)).data
+
+
+class ContinueSerializer(serializers.Serializer):
+    lesson = ContinueLessonSerializer(allow_null=True, help_text="Null when everything is done.")
+    reason = serializers.ChoiceField(
+        choices=[
+            ("resume", "Aula aberta e não concluída"),
+            ("next", "Próxima aula depois da última concluída"),
+            ("start", "Primeira aula, nada aberto ainda"),
+        ],
+        allow_null=True,
+    )
+
+
+class StudyPreferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudyPreferences
+        fields = ["suggest_completion", "suggest_completion_percent"]

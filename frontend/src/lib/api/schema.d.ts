@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["continue_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses": {
         parameters: {
             query?: never;
@@ -236,6 +252,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lessons_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lessons/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lessons_complete_create"];
+        delete: operations["lessons_complete_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lessons/{id}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lessons_heartbeat_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["preferences_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["preferences_partial_update"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -250,6 +330,21 @@ export interface components {
             readonly drive_file_id: string;
             readonly mime_type: string;
             readonly view_url: string;
+            /** @description Embeddable preview (iframe). */
+            readonly preview_url: string;
+        };
+        Continue: {
+            /** @description Null when everything is done. */
+            lesson: components["schemas"]["ContinueLesson"] | null;
+            reason: (components["schemas"]["ReasonEnum"] | components["schemas"]["NullEnum"]) | null;
+        };
+        ContinueLesson: {
+            readonly id: number;
+            readonly title: string;
+            readonly duration_seconds: number | null;
+            readonly course: components["schemas"]["CourseRef"];
+            readonly module: components["schemas"]["Ref"];
+            readonly progress: components["schemas"]["LessonProgress"];
         };
         Course: {
             readonly id: number;
@@ -307,6 +402,11 @@ export interface components {
             course: components["schemas"]["Course"];
             job: components["schemas"]["ImportJob"];
         };
+        CourseRef: {
+            readonly id: number;
+            readonly title: string;
+            readonly thumbnail_url: string | null;
+        };
         GoogleStatus: {
             /** @description Client ID/secret set on the server. */
             configured: boolean;
@@ -321,6 +421,10 @@ export interface components {
         };
         Health: {
             status: string;
+        };
+        HeartbeatRequest: {
+            /** @description Seconds with the tab visible since the last heartbeat; 0 when the page opens. Capped at 60. */
+            seconds: number;
         };
         ImportJob: {
             readonly id: number;
@@ -364,6 +468,44 @@ export interface components {
             attachments: number;
             warnings: string[];
         };
+        /** @description A lesson for the player. Expects `neighbors` (progress.Neighbors) in the context. */
+        LessonDetail: {
+            readonly id: number;
+            readonly title: string;
+            readonly title_is_custom: boolean;
+            readonly drive_file_id: string;
+            readonly drive_name_original: string;
+            readonly mime_type: string;
+            readonly duration_seconds: number | null;
+            readonly is_hidden: boolean;
+            readonly missing_in_drive: boolean;
+            readonly embed_url: string;
+            readonly drive_url: string;
+            readonly course: components["schemas"]["Ref"];
+            readonly module: components["schemas"]["Ref"];
+            readonly progress: components["schemas"]["LessonProgress"];
+            readonly attachments: components["schemas"]["Attachment"][];
+            readonly module_attachments: components["schemas"]["Attachment"][];
+            readonly previous: components["schemas"]["LessonRef"] | null;
+            readonly next: components["schemas"]["LessonRef"] | null;
+            /** @description 1-based position among the playable lessons; null for hidden/missing ones. */
+            readonly position: number | null;
+            /** @description Playable lessons in the course. */
+            readonly total: number;
+        };
+        LessonProgress: {
+            readonly completed: boolean;
+            /** Format: date-time */
+            readonly completed_at: string | null;
+            /** Format: date-time */
+            readonly last_opened_at: string | null;
+            readonly time_on_page_seconds: number;
+        };
+        LessonRef: {
+            id: number;
+            title: string;
+            module_title: string;
+        };
         LessonSummary: {
             readonly id: number;
             readonly title: string;
@@ -394,6 +536,8 @@ export interface components {
             readonly lessons: components["schemas"]["LessonSummary"][];
             readonly attachments: components["schemas"]["Attachment"][];
         };
+        /** @enum {unknown} */
+        NullEnum: null;
         PatchedCourseUpdateRequest: {
             /** @description Empty string restores the title from the Drive folder name. */
             title?: string;
@@ -401,6 +545,12 @@ export interface components {
             is_archived?: boolean;
             /** @description Tidy Drive names into titles (extension, underscores...). */
             clean_titles?: boolean;
+        };
+        PatchedStudyPreferencesRequest: {
+            /** @description Offer to mark a lesson as done after enough time on the page. */
+            suggest_completion?: boolean;
+            /** @description Time on the page, as a percentage of the video duration. */
+            suggest_completion_percent?: number;
         };
         Progress: {
             lessons_total: number;
@@ -411,6 +561,23 @@ export interface components {
             duration_remaining_seconds: number;
             /** @description True when at least one counted lesson has a known duration. */
             has_durations: boolean;
+        };
+        /**
+         * @description * `resume` - Aula aberta e não concluída
+         *     * `next` - Próxima aula depois da última concluída
+         *     * `start` - Primeira aula, nada aberto ainda
+         * @enum {string}
+         */
+        ReasonEnum: "resume" | "next" | "start";
+        Ref: {
+            id: number;
+            title: string;
+        };
+        StudyPreferences: {
+            /** @description Offer to mark a lesson as done after enough time on the page. */
+            suggest_completion?: boolean;
+            /** @description Time on the page, as a percentage of the video duration. */
+            suggest_completion_percent?: number;
         };
         User: {
             readonly id: number;
@@ -526,6 +693,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    continue_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Only this course (archived or not). */
+                course?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Continue"];
+                };
             };
         };
     };
@@ -767,6 +956,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportJob"];
+                };
+            };
+        };
+    };
+    lessons_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonDetail"];
+                };
+            };
+        };
+    };
+    lessons_complete_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+        };
+    };
+    lessons_complete_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    lessons_heartbeat_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeartbeatRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["HeartbeatRequest"];
+                "multipart/form-data": components["schemas"]["HeartbeatRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+        };
+    };
+    preferences_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyPreferences"];
+                };
+            };
+        };
+    };
+    preferences_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStudyPreferencesRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStudyPreferencesRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStudyPreferencesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyPreferences"];
                 };
             };
         };

@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -122,6 +123,54 @@ class Note(models.Model):
 
     def __str__(self) -> str:
         return f"Note for {self.lesson_id}"
+
+
+class StudySession(models.Model):
+    """A stretch of time on a lesson page, built from heartbeats. Feeds the study stats."""
+
+    # Heartbeats closer than this extend the previous session instead of opening a new one.
+    MAX_GAP_SECONDS = 120
+
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="study_sessions")
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField()
+    # Time with the tab visible; ended_at - started_at also includes short hidden gaps.
+    seconds = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-started_at"]
+        indexes = [models.Index(fields=["started_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.lesson_id}: {self.seconds}s"
+
+
+class StudyPreferences(models.Model):
+    """The single row of study settings."""
+
+    SINGLETON_ID = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON_ID, editable=False)
+    suggest_completion = models.BooleanField(
+        default=True, help_text="Offer to mark a lesson as done after enough time on the page."
+    )
+    suggest_completion_percent = models.PositiveSmallIntegerField(
+        default=90,
+        validators=[MinValueValidator(50), MaxValueValidator(100)],
+        help_text="Time on the page, as a percentage of the video duration.",
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(id=1), name="study_preferences_singleton"),
+        ]
+
+    def __str__(self) -> str:
+        return "Study preferences"
+
+    @classmethod
+    def load(cls) -> "StudyPreferences":
+        return cls.objects.get_or_create(pk=cls.SINGLETON_ID)[0]
 
 
 class ImportJob(models.Model):

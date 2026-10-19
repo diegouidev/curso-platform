@@ -1,6 +1,17 @@
 from django.urls import path
 
-from .views import CourseDetailView, CourseImportView, CourseListView, CourseSyncView, ImportJobView
+from .views import (
+    ContinueView,
+    CourseDetailView,
+    CourseImportView,
+    CourseListView,
+    CourseSyncView,
+    ImportJobView,
+    LessonCompleteView,
+    LessonDetailView,
+    LessonHeartbeatView,
+    StudyPreferencesView,
+)
 
 urlpatterns = [
     path("courses", CourseListView.as_view(), name="course-list"),
@@ -8,4 +19,9 @@ urlpatterns = [
     path("courses/<int:pk>", CourseDetailView.as_view(), name="course-detail"),
     path("courses/<int:pk>/sync", CourseSyncView.as_view(), name="course-sync"),
     path("import-jobs/<int:pk>", ImportJobView.as_view(), name="import-job-detail"),
+    path("lessons/<int:pk>", LessonDetailView.as_view(), name="lesson-detail"),
+    path("lessons/<int:pk>/complete", LessonCompleteView.as_view(), name="lesson-complete"),
+    path("lessons/<int:pk>/heartbeat", LessonHeartbeatView.as_view(), name="lesson-heartbeat"),
+    path("continue", ContinueView.as_view(), name="continue"),
+    path("preferences", StudyPreferencesView.as_view(), name="preferences"),
 ]

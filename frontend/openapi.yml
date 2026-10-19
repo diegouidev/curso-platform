@@ -73,6 +73,26 @@ paths:
           description: ''
         '401':
           description: Sessão expirada. Faça login novamente.
+  /api/continue:
+    get:
+      operationId: continue_retrieve
+      parameters:
+      - in: query
+        name: course
+        schema:
+          type: integer
+        description: Only this course (archived or not).
+      tags:
+      - lessons
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Continue'
+          description: ''
   /api/courses:
     get:
       operationId: courses_list
@@ -296,6 +316,131 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
+  /api/lessons/{id}:
+    get:
+      operationId: lessons_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lessons
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonDetail'
+          description: ''
+  /api/lessons/{id}/complete:
+    post:
+      operationId: lessons_complete_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lessons
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+          description: ''
+    delete:
+      operationId: lessons_complete_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lessons
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/lessons/{id}/heartbeat:
+    post:
+      operationId: lessons_heartbeat_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lessons
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+          description: ''
+  /api/preferences:
+    get:
+      operationId: preferences_retrieve
+      tags:
+      - preferences
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyPreferences'
+          description: ''
+    patch:
+      operationId: preferences_partial_update
+      tags:
+      - preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudyPreferencesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudyPreferencesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudyPreferencesRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyPreferences'
+          description: ''
 components:
   schemas:
     AccessToken:
@@ -326,12 +471,65 @@ components:
         view_url:
           type: string
           readOnly: true
+        preview_url:
+          type: string
+          readOnly: true
+          description: Embeddable preview (iframe).
       required:
       - drive_file_id
       - id
       - mime_type
+      - preview_url
       - title
       - view_url
+    Continue:
+      type: object
+      properties:
+        lesson:
+          allOf:
+          - $ref: '#/components/schemas/ContinueLesson'
+          nullable: true
+          description: Null when everything is done.
+        reason:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - lesson
+      - reason
+    ContinueLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        course:
+          allOf:
+          - $ref: '#/components/schemas/CourseRef'
+          readOnly: true
+        module:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        progress:
+          allOf:
+          - $ref: '#/components/schemas/LessonProgress'
+          readOnly: true
+      required:
+      - course
+      - duration_seconds
+      - id
+      - module
+      - progress
+      - title
     Course:
       type: object
       properties:
@@ -512,6 +710,23 @@ components:
       required:
       - course
       - job
+    CourseRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        thumbnail_url:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - id
+      - thumbnail_url
+      - title
     GoogleStatus:
       type: object
       properties:
@@ -556,6 +771,16 @@ components:
           type: string
       required:
       - status
+    HeartbeatRequest:
+      type: object
+      properties:
+        seconds:
+          type: integer
+          minimum: 0
+          description: Seconds with the tab visible since the last heartbeat; 0 when
+            the page opens. Capped at 60.
+      required:
+      - seconds
     ImportJob:
       type: object
       properties:
@@ -667,6 +892,145 @@ components:
       - modules_created
       - modules_missing
       - warnings
+    LessonDetail:
+      type: object
+      description: A lesson for the player. Expects `neighbors` (progress.Neighbors)
+        in the context.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        title_is_custom:
+          type: boolean
+          readOnly: true
+        drive_file_id:
+          type: string
+          readOnly: true
+        drive_name_original:
+          type: string
+          readOnly: true
+        mime_type:
+          type: string
+          readOnly: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        is_hidden:
+          type: boolean
+          readOnly: true
+        missing_in_drive:
+          type: boolean
+          readOnly: true
+        embed_url:
+          type: string
+          readOnly: true
+        drive_url:
+          type: string
+          readOnly: true
+        course:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        module:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          readOnly: true
+        progress:
+          allOf:
+          - $ref: '#/components/schemas/LessonProgress'
+          readOnly: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+          readOnly: true
+        module_attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+          readOnly: true
+        previous:
+          allOf:
+          - $ref: '#/components/schemas/LessonRef'
+          nullable: true
+          readOnly: true
+        next:
+          allOf:
+          - $ref: '#/components/schemas/LessonRef'
+          nullable: true
+          readOnly: true
+        position:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: 1-based position among the playable lessons; null for hidden/missing
+            ones.
+        total:
+          type: integer
+          readOnly: true
+          description: Playable lessons in the course.
+      required:
+      - attachments
+      - course
+      - drive_file_id
+      - drive_name_original
+      - drive_url
+      - duration_seconds
+      - embed_url
+      - id
+      - is_hidden
+      - mime_type
+      - missing_in_drive
+      - module
+      - module_attachments
+      - next
+      - position
+      - previous
+      - progress
+      - title
+      - title_is_custom
+      - total
+    LessonProgress:
+      type: object
+      properties:
+        completed:
+          type: boolean
+          readOnly: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        time_on_page_seconds:
+          type: integer
+          readOnly: true
+      required:
+      - completed
+      - completed_at
+      - last_opened_at
+      - time_on_page_seconds
+    LessonRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        module_title:
+          type: string
+      required:
+      - id
+      - module_title
+      - title
     LessonSummary:
       type: object
       properties:
@@ -785,6 +1149,9 @@ components:
       - progress
       - title
       - title_is_custom
+    NullEnum:
+      enum:
+      - null
     PatchedCourseUpdateRequest:
       type: object
       properties:
@@ -799,6 +1166,17 @@ components:
         clean_titles:
           type: boolean
           description: Tidy Drive names into titles (extension, underscores...).
+    PatchedStudyPreferencesRequest:
+      type: object
+      properties:
+        suggest_completion:
+          type: boolean
+          description: Offer to mark a lesson as done after enough time on the page.
+        suggest_completion_percent:
+          type: integer
+          maximum: 100
+          minimum: 50
+          description: Time on the page, as a percentage of the video duration.
     Progress:
       type: object
       properties:
@@ -823,6 +1201,37 @@ components:
       - lessons_completed
       - lessons_total
       - percent
+    ReasonEnum:
+      enum:
+      - resume
+      - next
+      - start
+      type: string
+      description: |-
+        * `resume` - Aula aberta e não concluída
+        * `next` - Próxima aula depois da última concluída
+        * `start` - Primeira aula, nada aberto ainda
+    Ref:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+      required:
+      - id
+      - title
+    StudyPreferences:
+      type: object
+      properties:
+        suggest_completion:
+          type: boolean
+          description: Offer to mark a lesson as done after enough time on the page.
+        suggest_completion_percent:
+          type: integer
+          maximum: 100
+          minimum: 50
+          description: Time on the page, as a percentage of the video duration.
     User:
       type: object
       properties:

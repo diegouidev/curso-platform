@@ -51,3 +51,9 @@ def course_detail_queryset() -> QuerySet[Course]:
             ),
         ),
     )
+
+
+def lesson_detail_queryset() -> QuerySet[Lesson]:
+    return Lesson.objects.select_related("module__course", "progress").prefetch_related(
+        "attachments", "module__attachments"
+    )

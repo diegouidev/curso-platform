@@ -1,5 +1,10 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
 from rest_framework import serializers, status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -8,17 +13,23 @@ from rest_framework.views import APIView
 from apps.drive.client import drive_client
 
 from . import jobs
-from .models import Course, ImportJob
+from . import progress as study
+from .models import Course, ImportJob, Lesson, StudyPreferences
 from .naming import make_title
-from .queries import course_detail_queryset, course_list_queryset
+from .queries import course_detail_queryset, course_list_queryset, lesson_detail_queryset
 from .scanner import get_root_folder
 from .serializers import (
+    ContinueSerializer,
     CourseDetailSerializer,
     CourseImportResponseSerializer,
     CourseImportSerializer,
     CourseSerializer,
     CourseUpdateSerializer,
+    HeartbeatSerializer,
     ImportJobSerializer,
+    LessonDetailSerializer,
+    LessonProgressSerializer,
+    StudyPreferencesSerializer,
 )
 
 CourseExists = inline_serializer(
@@ -117,3 +128,79 @@ class ImportJobView(APIView):
         job = get_object_or_404(ImportJob, pk=pk)
         job.fail_if_stale()
         return Response(ImportJobSerializer(job).data)
+
+
+# --- Player and progress (phase 4) -------------------------------------------------------
+
+
+class LessonDetailView(APIView):
+    @extend_schema(responses=LessonDetailSerializer, tags=["lessons"])
+    def get(self, request: Request, pk: int) -> Response:
+        # Read-only on purpose: "opened" is recorded by the first heartbeat, so prefetching
+        # the next lesson doesn't count as opening it.
+        lesson = get_object_or_404(lesson_detail_queryset(), pk=pk)
+        serializer = LessonDetailSerializer(lesson, context={"neighbors": study.neighbors(lesson)})
+        return Response(serializer.data)
+
+
+class LessonCompleteView(APIView):
+    @extend_schema(request=None, responses=LessonProgressSerializer, tags=["lessons"])
+    def post(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson, pk=pk)
+        return Response(LessonProgressSerializer(study.set_completed(lesson, True)).data)
+
+    @extend_schema(request=None, responses=LessonProgressSerializer, tags=["lessons"])
+    def delete(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson, pk=pk)
+        return Response(LessonProgressSerializer(study.set_completed(lesson, False)).data)
+
+
+class LessonHeartbeatView(APIView):
+    @extend_schema(
+        request=HeartbeatSerializer, responses=LessonProgressSerializer, tags=["lessons"]
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson, pk=pk)
+        payload = HeartbeatSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        progress = study.record_heartbeat(lesson, payload.validated_data["seconds"])
+        return Response(LessonProgressSerializer(progress).data)
+
+
+class ContinueView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("course", int, description="Only this course (archived or not).")
+        ],
+        responses=ContinueSerializer,
+        tags=["lessons"],
+    )
+    def get(self, request: Request) -> Response:
+        course_id = request.query_params.get("course")
+        if course_id is not None and not course_id.isdigit():
+            return Response(
+                {"detail": "Parâmetro course inválido.", "code": "invalid"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        found = study.continue_lesson(int(course_id) if course_id else None)
+        lesson, reason = found if found else (None, None)
+        return Response(ContinueSerializer({"lesson": lesson, "reason": reason}).data)
+
+
+class StudyPreferencesView(APIView):
+    @extend_schema(responses=StudyPreferencesSerializer, tags=["preferences"])
+    def get(self, request: Request) -> Response:
+        return Response(StudyPreferencesSerializer(StudyPreferences.load()).data)
+
+    @extend_schema(
+        request=StudyPreferencesSerializer,
+        responses=StudyPreferencesSerializer,
+        tags=["preferences"],
+    )
+    def patch(self, request: Request) -> Response:
+        serializer = StudyPreferencesSerializer(
+            StudyPreferences.load(), data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
