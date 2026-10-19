@@ -160,3 +160,46 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
   como falho e libera nova sincronização. Só um job ativo por curso.
 - **Progresso agregado** conta apenas aulas visíveis, em módulos visíveis e presentes no
   Drive.
+
+### 12. Player e progresso (Fase 4)
+
+- **Player:** iframe do embed oficial (`/file/d/<id>/preview`), 16:9, `allow="autoplay;
+  fullscreen"`. O vídeo nunca passa pelo backend. O iframe é de outra origem, então o
+  evento `load` dispara mesmo quando o Google mostra erro ou tela de login: **não dá para
+  saber se o vídeo carregou**. Por isso o link "O vídeo não carrega?" fica sempre visível
+  e vira um alerta se o `load` não acontecer em 20 s. A ajuda cobre conta errada, várias
+  contas abertas, cookies de terceiros (Safari/Chrome/Firefox) e vídeo recém-enviado. O
+  "Abrir no Drive" usa `?authuser=<e-mail conectado>` para o Google escolher a conta certa
+  numa aba nova.
+- **`GET /api/lessons/{id}` não tem efeito colateral.** "Última aula aberta" é gravada
+  pelo primeiro heartbeat (`seconds=0`), enviado quando a página abre. Assim o prefetch da
+  anterior e da próxima não conta como abrir.
+- **Navegação:** anterior/próxima atravessam módulos e pulam aulas ocultas, de módulos
+  ocultos ou fora do Drive. Uma aula fora da lista (aberta por link direto) tem
+  `position=null`, mas ainda recebe as vizinhas mais próximas.
+- **Tempo na página:** só conta com a aba visível (Page Visibility API), com base em
+  timestamps (não em ticks do timer, que o navegador atrasa). O cliente envia a cada 15 s
+  e também ao esconder a aba, sair da página ou trocar de aula, usando `fetch` com
+  `keepalive` (o `sendBeacon` não envia o header `Authorization`). O servidor limita cada
+  heartbeat a 60 s.
+- **StudySession:** cada heartbeat estende a última sessão da aula se ela terminou há
+  menos de 2 min; senão abre outra. `seconds` guarda só o tempo visível. É a base das
+  estatísticas (sequência de dias, tempo por semana).
+- **Conclusão:** `POST`/`DELETE /api/lessons/{id}/complete`, idempotentes (concluir duas
+  vezes mantém o primeiro `completed_at`). O frontend atualiza de forma otimista e
+  oferece "Desfazer" no toast. Depois de concluir, a ação principal passa a ser "Próxima".
+- **Sugestão de conclusão:** com a preferência ligada e a duração conhecida, quando o
+  tempo na página (gravado + não enviado) passa de X% da duração, aparece um toast
+  "Marcar como concluída?". Uma vez por visita, nunca marca sozinho. As preferências
+  (`StudyPreferences`, registro único) ficam no backend para entrar no backup.
+- **Continuar de onde parei** (`GET /api/continue[?course=<id>]`): (1) a última aula
+  aberta, se não concluída; (2) se já concluída, a próxima não concluída depois dela no
+  curso; (3) a aberta mais recente não concluída; (4) nada aberto: a primeira não
+  concluída do curso mais recente. Cursos arquivados ficam de fora, a menos que sejam
+  pedidos explicitamente.
+- **Atalhos:** `M` concluir/desfazer, `N` próxima, `P` anterior, `F` tela cheia
+  (`requestFullscreen` no iframe), `S` modo foco. São ignorados ao digitar, com
+  Ctrl/Alt/Meta e dentro de diálogos. Limitação: depois de clicar no vídeo, o foco fica
+  dentro do iframe do Drive e as teclas vão para o player do Google.
+- **Modo foco** (sidebar escondida) é lembrado no `localStorage`. No celular, a lista de
+  aulas vira uma gaveta (`Sheet`).

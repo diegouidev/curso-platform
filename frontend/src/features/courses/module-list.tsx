@@ -1,12 +1,5 @@
-import {
-  CheckCircle2,
-  Circle,
-  CloudOff,
-  ExternalLink,
-  FileText,
-  NotebookPen,
-  Paperclip,
-} from "lucide-react";
+import { CheckCircle2, Circle, CloudOff, NotebookPen, Paperclip } from "lucide-react";
+import Link from "next/link";
 
 import {
   Accordion,
@@ -16,15 +9,14 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { lessonPath } from "@/features/lessons/api";
+import { AttachmentList } from "@/features/lessons/attachment-list";
 import { formatClock, formatDuration, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import type { Attachment, LessonSummary, Module } from "./api";
+import type { LessonSummary, Module } from "./api";
 
-// Until the in-app player lands (phase 4), lessons open in the Drive viewer.
-const driveViewUrl = (fileId: string) => `https://drive.google.com/file/d/${fileId}/view`;
-
-export function ModuleList({ modules }: { modules: Module[] }) {
+export function ModuleList({ courseId, modules }: { courseId: number; modules: Module[] }) {
   const visible = modules.filter((module) => !module.is_hidden);
   const firstOpen = visible.find((m) => m.progress.lessons_completed < m.progress.lessons_total);
 
@@ -35,13 +27,13 @@ export function ModuleList({ modules }: { modules: Module[] }) {
       className="overflow-hidden rounded-xl border"
     >
       {visible.map((module) => (
-        <ModuleItem key={module.id} module={module} />
+        <ModuleItem key={module.id} courseId={courseId} module={module} />
       ))}
     </Accordion>
   );
 }
 
-function ModuleItem({ module }: { module: Module }) {
+function ModuleItem({ courseId, module }: { courseId: number; module: Module }) {
   const lessons = module.lessons.filter((lesson) => !lesson.is_hidden);
   const { progress } = module;
   const done = progress.lessons_total > 0 && progress.lessons_completed === progress.lessons_total;
@@ -72,7 +64,7 @@ function ModuleItem({ module }: { module: Module }) {
       <AccordionContent className="pb-2">
         <ul className="grid">
           {lessons.map((lesson) => (
-            <LessonRow key={lesson.id} lesson={lesson} />
+            <LessonRow key={lesson.id} courseId={courseId} lesson={lesson} />
           ))}
         </ul>
         {lessons.length === 0 && (
@@ -81,7 +73,7 @@ function ModuleItem({ module }: { module: Module }) {
         {module.attachments.length > 0 && (
           <div className="mx-4 mt-2 grid gap-1 border-t pt-3 sm:mx-5">
             <p className="text-xs font-medium text-muted-foreground">Materiais do módulo</p>
-            <AttachmentLinks attachments={module.attachments} />
+            <AttachmentList attachments={module.attachments} />
           </div>
         )}
       </AccordionContent>
@@ -89,15 +81,13 @@ function ModuleItem({ module }: { module: Module }) {
   );
 }
 
-function LessonRow({ lesson }: { lesson: LessonSummary }) {
+function LessonRow({ courseId, lesson }: { courseId: number; lesson: LessonSummary }) {
   return (
     <li>
-      <a
-        href={driveViewUrl(lesson.drive_file_id)}
-        target="_blank"
-        rel="noreferrer"
+      <Link
+        href={lessonPath(courseId, lesson.id)}
         className={cn(
-          "group flex items-center gap-3 px-4 py-2.5 text-sm outline-none hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-5",
+          "group flex items-center gap-3 px-4 py-2.5 text-sm no-underline! outline-none hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-5",
           lesson.missing_in_drive && "text-muted-foreground",
         )}
       >
@@ -127,34 +117,8 @@ function LessonRow({ lesson }: { lesson: LessonSummary }) {
             {formatClock(lesson.duration_seconds)}
           </span>
         )}
-        <ExternalLink
-          className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
-          aria-hidden
-        />
-        <span className="sr-only">(abre no Google Drive em nova aba)</span>
-      </a>
+      </Link>
     </li>
-  );
-}
-
-function AttachmentLinks({ attachments }: { attachments: Attachment[] }) {
-  return (
-    <ul className="grid gap-1">
-      {attachments.map((attachment) => (
-        <li key={attachment.id}>
-          <a
-            href={attachment.view_url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 rounded-md py-1 text-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            {attachment.title}
-            <span className="sr-only">(abre em nova aba)</span>
-          </a>
-        </li>
-      ))}
-    </ul>
   );
 }
 

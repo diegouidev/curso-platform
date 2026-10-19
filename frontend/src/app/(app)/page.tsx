@@ -11,6 +11,7 @@ import { CourseCard } from "@/features/courses/course-card";
 import { useCourses } from "@/features/courses/api";
 import { ImportCourseDialog } from "@/features/courses/import-course-dialog";
 import { useGoogleStatus } from "@/features/google/api";
+import { ContinueCard } from "@/features/lessons/continue-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -65,6 +66,7 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <>
+          <ContinueCard />
           <section aria-labelledby="cursos" className="grid gap-4">
             <h2 id="cursos" className="sr-only">
               Cursos

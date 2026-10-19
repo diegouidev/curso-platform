@@ -27,6 +27,7 @@ import {
 import { ImportJobProgress } from "@/features/courses/import-job-progress";
 import { ModuleList, summarizeModules } from "@/features/courses/module-list";
 import { GOOGLE_ERROR_MESSAGES } from "@/features/google/api";
+import { CourseContinueButton } from "@/features/lessons/continue-button";
 import { ApiError } from "@/lib/api/client";
 import { formatDuration, formatRelative } from "@/lib/format";
 
@@ -91,6 +92,7 @@ function CourseView({ course }: { course: CourseDetail }) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            {hasLessons && <CourseContinueButton courseId={course.id} />}
             <SyncButton courseId={course.id} disabled={syncing} />
             <Button asChild variant="ghost">
               <a href={course.drive_url} target="_blank" rel="noreferrer">
@@ -128,7 +130,7 @@ function CourseView({ course }: { course: CourseDetail }) {
       )}
 
       {hasLessons ? (
-        <ModuleList modules={course.modules} />
+        <ModuleList courseId={course.id} modules={course.modules} />
       ) : (
         !syncing && (
           <Card className="border-dashed">

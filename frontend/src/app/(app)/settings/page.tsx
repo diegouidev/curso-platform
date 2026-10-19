@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { GoogleAccountCard } from "@/features/google/google-account-card";
 import { OAuthResultToast } from "@/features/google/oauth-result-toast";
+import { CompletionSettingsCard } from "@/features/lessons/completion-settings-card";
 
 export const metadata: Metadata = { title: "Configurações" };
 
@@ -20,6 +21,12 @@ export default function SettingsPage() {
           Integrações
         </h2>
         <GoogleAccountCard returnTo="/settings" />
+      </section>
+      <section aria-labelledby="estudo" className="grid gap-3">
+        <h2 id="estudo" className="text-sm font-medium text-muted-foreground">
+          Estudo
+        </h2>
+        <CompletionSettingsCard />
       </section>
     </div>
   );
