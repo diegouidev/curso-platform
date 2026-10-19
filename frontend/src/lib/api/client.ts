@@ -63,6 +63,14 @@ async function authFetch(request: Request): Promise<Response> {
   return fetch(withAuth(retry));
 }
 
+/**
+ * Raw authenticated fetch (same token refresh as `api`) for what the typed client handles
+ * poorly: multipart uploads (the browser must set the boundary) and file downloads.
+ */
+export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  return authFetch(new Request(new URL(path, window.location.origin), init));
+}
+
 export const api = createClient<paths>({
   baseUrl: typeof window === "undefined" ? "http://localhost" : window.location.origin,
   credentials: "same-origin",

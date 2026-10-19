@@ -24,6 +24,7 @@ import {
   useSyncCourse,
   type CourseDetail,
 } from "@/features/courses/api";
+import { CourseActions } from "@/features/courses/course-actions";
 import { ImportJobProgress } from "@/features/courses/import-job-progress";
 import { ModuleList, summarizeModules } from "@/features/courses/module-list";
 import { GOOGLE_ERROR_MESSAGES } from "@/features/google/api";
@@ -68,6 +69,11 @@ function CourseView({ course }: { course: CourseDetail }) {
   const { progress, latest_job: job } = course;
   const syncing = isJobActive(job);
   const hasLessons = course.modules.some((module) => module.lessons.length > 0);
+  const hiddenCount =
+    course.modules.filter((module) => module.is_hidden).length +
+    course.modules
+      .filter((module) => !module.is_hidden)
+      .reduce((total, module) => total + module.lessons.filter((l) => l.is_hidden).length, 0);
 
   return (
     <div className="grid grid-cols-1 gap-8">
@@ -99,6 +105,7 @@ function CourseView({ course }: { course: CourseDetail }) {
                 <ExternalLink className="size-4" /> Abrir no Drive
               </a>
             </Button>
+            <CourseActions course={course} />
           </div>
         </header>
       </div>
@@ -130,7 +137,20 @@ function CourseView({ course }: { course: CourseDetail }) {
       )}
 
       {hasLessons ? (
-        <ModuleList courseId={course.id} modules={course.modules} />
+        <div className="grid grid-cols-1 gap-3">
+          <ModuleList courseId={course.id} modules={course.modules} />
+          {hiddenCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {hiddenCount === 1 ? "1 item oculto." : `${hiddenCount} itens ocultos.`}{" "}
+              <Link
+                href={`/courses/${course.id}/organize`}
+                className="underline underline-offset-4 hover:text-foreground"
+              >
+                Gerenciar em Organizar
+              </Link>
+            </p>
+          )}
+        </div>
       ) : (
         !syncing && (
           <Card className="border-dashed">
