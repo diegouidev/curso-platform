@@ -1,0 +1,36 @@
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+client_secret*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data
+backend/data/
+*.sqlite3
+backend/media/
+backend/staticfiles/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+playwright-report/
+test-results/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

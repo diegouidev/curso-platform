@@ -1,0 +1,39 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  # Local hooks reuse the pinned versions from backend/.venv and frontend/node_modules,
+  # so pre-commit and `make lint` never disagree.
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: bash -c 'cd backend && .venv/bin/ruff check --fix --force-exclude "${@#backend/}"' --
+        language: system
+        types: [python]
+        files: ^backend/
+      - id: black
+        name: black
+        entry: bash -c 'cd backend && .venv/bin/black "${@#backend/}"' --
+        language: system
+        types: [python]
+        files: ^backend/
+      - id: prettier
+        name: prettier
+        entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown "${@#frontend/}"' --
+        language: system
+        files: ^frontend/
+        exclude: ^frontend/(pnpm-lock\.yaml|openapi\.yml|src/lib/api/schema\.d\.ts)$
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd frontend && npx eslint --fix "${@#frontend/}"' --
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
