@@ -203,3 +203,33 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
   dentro do iframe do Drive e as teclas vão para o player do Google.
 - **Modo foco** (sidebar escondida) é lembrado no `localStorage`. No celular, a lista de
   aulas vira uma gaveta (`Sheet`).
+
+### 13. Anotações, busca e estatísticas (Fase 5)
+
+- **Anotações:** uma por aula (`GET/PUT /api/lessons/{id}/note`, upsert). Editor com abas
+  Escrever/Visualizar; o preview usa `react-markdown` + GFM, que **não renderiza HTML
+  cru**, então uma anotação não injeta markup. Salvamento automático com debounce de
+  800 ms, serializado numa fila (sempre vence o texto mais recente, mesmo com respostas
+  fora de ordem), `Ctrl+S` salva na hora e, ao sair da página ou trocar de aula, o
+  pendente vai com `keepalive` (até 60 mil caracteres: o navegador limita o corpo de
+  uma requisição `keepalive` a 64 KiB).
+- **Busca (`Ctrl+K`/`⌘K`):** `GET /api/search?q=` procura em títulos de cursos (e
+  descrição), títulos de aulas (e do módulo) e no texto das anotações. A comparação é
+  feita em Python sobre texto sem acentos e sem maiúsculas (`unicodedata` + `casefold`),
+  porque o `LIKE` do SQLite só ignora maiúsculas em ASCII. Todas as palavras precisam
+  aparecer. Aulas ocultas e de módulos ocultos ficam de fora; o título que começa com a
+  busca vem primeiro. Para anotações, a API devolve um trecho cortado em palavras e o
+  deslocamento do termo, que o frontend destaca com `<mark>`. Para uma biblioteca
+  pessoal (milhares de linhas), varrer tudo por requisição é rápido o bastante.
+- **Estatísticas (`GET /api/stats`):** calculadas por **dia local** (`TIME_ZONE`). Um dia
+  conta para a sequência com pelo menos 1 minuto em páginas de aula ou uma conclusão.
+  A sequência atual sobrevive até o fim do dia seguinte ao último dia estudado (não zera
+  de manhã antes de estudar). A semana começa na segunda-feira. O tempo total vem de
+  `LessonProgress.time_on_page_seconds`; o tempo por dia, das `StudySession`.
+- **Dashboard:** card "Continuar assistindo" em destaque, depois a linha de 3 indicadores
+  (concluídas na semana, sequência, tempo de estudo com barras dos últimos 7 dias, hoje
+  destacado, tooltip no hover e lista equivalente para leitores de tela) e a grade de
+  cursos. Se as estatísticas falharem, elas somem e o resto da página continua.
+- **Layout:** grids de uma coluna usam `grid-cols-1` (`minmax(0, 1fr)`). Uma trilha
+  `auto` cresce até a largura mínima de textos com `truncate` (sem quebra) e empurra a
+  coluna para baixo da sidebar.
