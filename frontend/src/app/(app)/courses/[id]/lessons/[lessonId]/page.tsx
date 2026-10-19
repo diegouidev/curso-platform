@@ -193,7 +193,7 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
   return (
     <div
       className={cn(
-        "grid grid-cols-1 items-start gap-6",
+        "grid grid-cols-1 items-start gap-6 lg:gap-8",
         !focusMode && "lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]",
       )}
     >
@@ -493,7 +493,7 @@ function OutlineSkeleton() {
 function PlayerSkeleton() {
   return (
     <div
-      className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]"
+      className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]"
       aria-busy="true"
       aria-label="Carregando aula"
     >
