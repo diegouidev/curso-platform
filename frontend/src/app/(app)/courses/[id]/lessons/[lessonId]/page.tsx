@@ -192,11 +192,11 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
   return (
     <div
       className={cn(
-        "grid items-start gap-6",
+        "grid grid-cols-1 items-start gap-6",
         !focusMode && "lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]",
       )}
     >
-      <div className="grid min-w-0 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6">
         <div className="flex items-center justify-between gap-3">
           <nav aria-label="Você está em" className="min-w-0 text-sm text-muted-foreground">
             <ol className="flex min-w-0 items-center gap-1">
@@ -246,7 +246,7 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
           <MissingInDrive driveUrl={withAuthUser(lesson.drive_url, google?.email)} />
         )}
 
-        <section aria-labelledby="lesson-title" className="grid gap-4">
+        <section aria-labelledby="lesson-title" className="grid grid-cols-1 gap-4">
           <div className="grid gap-1.5">
             <h1
               id="lesson-title"
@@ -315,13 +315,13 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
         </section>
 
         {hasMaterials && (
-          <section aria-labelledby="materiais" className="grid gap-3 rounded-xl border p-4">
+          <section aria-labelledby="materiais" className="grid grid-cols-1 gap-3 rounded-xl border p-4">
             <h2 id="materiais" className="text-sm font-medium">
               Materiais
             </h2>
             {lesson.attachments.length > 0 && <AttachmentList attachments={lesson.attachments} />}
             {lesson.module_attachments.length > 0 && (
-              <div className="grid gap-1">
+              <div className="grid grid-cols-1 gap-1">
                 <p className="px-2 text-xs font-medium text-muted-foreground">
                   Do módulo {lesson.module.title}
                 </p>

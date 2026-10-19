@@ -39,13 +39,13 @@ export function AttachmentList({ attachments }: { attachments: Attachment[] }) {
 
   return (
     <>
-      <ul className="grid gap-1">
+      <ul className="grid grid-cols-1 gap-1">
         {attachments.map((attachment) => {
           const Icon = iconFor(attachment.mime_type);
           return (
             <li
               key={attachment.id}
-              className="flex min-h-11 items-center gap-2 rounded-lg px-2 hover:bg-muted/60"
+              className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-2 hover:bg-muted/60"
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <button

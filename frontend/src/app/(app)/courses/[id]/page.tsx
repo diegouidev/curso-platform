@@ -70,7 +70,7 @@ function CourseView({ course }: { course: CourseDetail }) {
   const hasLessons = course.modules.some((module) => module.lessons.length > 0);
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <JobFinishedToast course={course} />
       <div className="grid gap-4">
         <Link

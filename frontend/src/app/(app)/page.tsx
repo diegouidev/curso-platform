@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const canImport = google.data?.connected && !google.data.needs_reconnect;
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">Olá, {user?.username}</h1>
