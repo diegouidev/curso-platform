@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, Circle, CloudOff, PlayCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Circle, CloudOff, NotebookPen, PlayCircle } from "lucide-react";
 import Link from "next/link";
 import { Accordion } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
@@ -22,7 +22,10 @@ type Props = {
 
 /** Course modules and lessons for the player sidebar/drawer; the current lesson is highlighted. */
 export function LessonOutline({ course, currentLessonId, onNavigate, className }: Props) {
-  const modules = course.modules.filter((module) => !module.is_hidden);
+  // Modules without visible lessons (e.g. an empty "Geral") are noise in the player.
+  const modules = course.modules.filter(
+    (module) => !module.is_hidden && module.lessons.some((lesson) => !lesson.is_hidden),
+  );
   const currentModuleId = modules.find((module) =>
     module.lessons.some((lesson) => lesson.id === currentLessonId),
   )?.id;
@@ -135,6 +138,12 @@ export function LessonOutline({ course, currentLessonId, onNavigate, className }
                             <span className="line-clamp-2 min-w-0 flex-1 leading-snug">
                               {lesson.title}
                             </span>
+                            {lesson.has_note && (
+                              <NotebookPen
+                                className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                                aria-label="Tem anotação"
+                              />
+                            )}
                             {lesson.duration_seconds != null && (
                               <span className="mt-0.5 shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
                                 {formatClock(lesson.duration_seconds)}

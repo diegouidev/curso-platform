@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { courseKeys, type CourseDetail } from "@/features/courses/api";
+import { statsKeys } from "@/features/stats/api";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
 
@@ -97,6 +98,7 @@ export function useSetCompleted(lesson: Pick<LessonDetail, "id" | "course">) {
       // Aggregated progress (course, modules, dashboard) and "continue" come from the server.
       void queryClient.invalidateQueries({ queryKey: courseKeys.all });
       void queryClient.invalidateQueries({ queryKey: lessonKeys.continueAll });
+      void queryClient.invalidateQueries({ queryKey: statsKeys.all });
     },
   });
 }

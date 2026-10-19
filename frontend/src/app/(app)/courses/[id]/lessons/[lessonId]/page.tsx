@@ -41,6 +41,7 @@ import { LESSON_SHORTCUTS, useLessonShortcuts } from "@/features/lessons/use-les
 import { useTimeOnPage } from "@/features/lessons/use-time-on-page";
 import { VideoPlayer } from "@/features/lessons/video-player";
 import { withAuthUser } from "@/features/lessons/video-help";
+import { NoteEditor } from "@/features/notes/note-editor";
 import { ApiError } from "@/lib/api/client";
 import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -315,7 +316,10 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
         </section>
 
         {hasMaterials && (
-          <section aria-labelledby="materiais" className="grid grid-cols-1 gap-3 rounded-xl border p-4">
+          <section
+            aria-labelledby="materiais"
+            className="grid grid-cols-1 gap-3 rounded-xl border p-4"
+          >
             <h2 id="materiais" className="text-sm font-medium">
               Materiais
             </h2>
@@ -330,6 +334,8 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
             )}
           </section>
         )}
+
+        <NoteEditor lessonId={lesson.id} courseId={courseId} />
       </div>
 
       {!focusMode && (
