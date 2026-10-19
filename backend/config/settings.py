@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.drive",
-    "apps.courses",
 ]
 
 MIDDLEWARE = [
@@ -162,9 +161,6 @@ GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
 GOOGLE_REDIRECT_URI = env(
     "GOOGLE_REDIRECT_URI", default="http://localhost:8000/api/google/callback"
 )
-
-# Course import/sync runs in a background thread; tests run it inline.
-COURSE_IMPORT_ASYNC = env.bool("COURSE_IMPORT_ASYNC", default=True)
 
 # --- Security headers --------------------------------------------------------
 SECURE_CONTENT_TYPE_NOSNIFF = True
