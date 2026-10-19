@@ -50,6 +50,16 @@ sudo apt update && sudo apt install -y make python3.12-venv
 
 Acesse http://localhost:3000.
 
+## Conectar o Google e importar um curso
+
+1. Siga [docs/google-oauth.md](docs/google-oauth.md) para criar a credencial OAuth (uma vez
+   só) e preencha `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env`.
+2. Na plataforma, abra **Configuração inicial** (`/setup`) e clique em **Conectar Google**.
+3. Cole o link da pasta do curso (`https://drive.google.com/drive/folders/…`). Cada
+   subpasta vira um módulo, cada vídeo vira uma aula, e PDFs e documentos viram anexos.
+4. Quando o dono da pasta adicionar aulas, clique em **Sincronizar** na página do curso.
+   Seu progresso e suas anotações nunca são apagados.
+
 ## Com Docker
 
 ```bash
