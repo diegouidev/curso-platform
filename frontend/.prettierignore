@@ -3,3 +3,4 @@ node_modules
 pnpm-lock.yaml
 src/lib/api/schema.d.ts
 openapi.yml
+src/styles/shadcn.css
