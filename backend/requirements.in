@@ -1,0 +1,13 @@
+Django>=5.2,<6.0
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+drf-spectacular>=0.27
+django-cors-headers>=4.4
+django-environ>=0.11
+cryptography>=43
+google-api-python-client>=2.140
+google-auth>=2.34
+google-auth-oauthlib>=1.2
+Pillow>=10.4
+gunicorn>=23
+psycopg[binary]>=3.2
