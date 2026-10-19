@@ -399,14 +399,7 @@ class ContinueLessonSerializer(serializers.ModelSerializer):
 
 class ContinueSerializer(serializers.Serializer):
     lesson = ContinueLessonSerializer(allow_null=True, help_text="Null when everything is done.")
-    reason = serializers.ChoiceField(
-        choices=[
-            ("resume", "Aula aberta e não concluída"),
-            ("next", "Próxima aula depois da última concluída"),
-            ("start", "Primeira aula, nada aberto ainda"),
-        ],
-        allow_null=True,
-    )
+    reason = serializers.ChoiceField(choices=study.CONTINUE_REASONS, allow_null=True)
 
 
 class StudyPreferencesSerializer(serializers.ModelSerializer):

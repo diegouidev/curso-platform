@@ -142,6 +142,7 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "ImportJobStatusEnum": "apps.courses.models.ImportJob.Status",
         "ImportJobKindEnum": "apps.courses.models.ImportJob.Kind",
+        "ContinueReasonEnum": "apps.courses.progress.CONTINUE_REASONS",
     },
 }
 

@@ -493,7 +493,7 @@ components:
         reason:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/ReasonEnum'
+          - $ref: '#/components/schemas/ContinueReasonEnum'
           - $ref: '#/components/schemas/NullEnum'
       required:
       - lesson
@@ -530,6 +530,16 @@ components:
       - module
       - progress
       - title
+    ContinueReasonEnum:
+      enum:
+      - resume
+      - next
+      - start
+      type: string
+      description: |-
+        * `resume` - Aula aberta e não concluída
+        * `next` - Próxima aula depois da última concluída
+        * `start` - Primeira aula, nada aberto ainda
     Course:
       type: object
       properties:
@@ -1201,16 +1211,6 @@ components:
       - lessons_completed
       - lessons_total
       - percent
-    ReasonEnum:
-      enum:
-      - resume
-      - next
-      - start
-      type: string
-      description: |-
-        * `resume` - Aula aberta e não concluída
-        * `next` - Próxima aula depois da última concluída
-        * `start` - Primeira aula, nada aberto ainda
     Ref:
       type: object
       properties:

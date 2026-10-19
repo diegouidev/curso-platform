@@ -15,6 +15,11 @@ from .models import Lesson, LessonProgress, StudySession
 MAX_HEARTBEAT_SECONDS = 60
 
 ContinueReason = Literal["resume", "next", "start"]
+CONTINUE_REASONS = [
+    ("resume", "Aula aberta e não concluída"),
+    ("next", "Próxima aula depois da última concluída"),
+    ("start", "Primeira aula, nada aberto ainda"),
+]
 
 
 def playable_lessons() -> QuerySet[Lesson]:

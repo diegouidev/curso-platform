@@ -336,7 +336,7 @@ export interface components {
         Continue: {
             /** @description Null when everything is done. */
             lesson: components["schemas"]["ContinueLesson"] | null;
-            reason: (components["schemas"]["ReasonEnum"] | components["schemas"]["NullEnum"]) | null;
+            reason: (components["schemas"]["ContinueReasonEnum"] | components["schemas"]["NullEnum"]) | null;
         };
         ContinueLesson: {
             readonly id: number;
@@ -346,6 +346,13 @@ export interface components {
             readonly module: components["schemas"]["Ref"];
             readonly progress: components["schemas"]["LessonProgress"];
         };
+        /**
+         * @description * `resume` - Aula aberta e não concluída
+         *     * `next` - Próxima aula depois da última concluída
+         *     * `start` - Primeira aula, nada aberto ainda
+         * @enum {string}
+         */
+        ContinueReasonEnum: "resume" | "next" | "start";
         Course: {
             readonly id: number;
             readonly title: string;
@@ -562,13 +569,6 @@ export interface components {
             /** @description True when at least one counted lesson has a known duration. */
             has_durations: boolean;
         };
-        /**
-         * @description * `resume` - Aula aberta e não concluída
-         *     * `next` - Próxima aula depois da última concluída
-         *     * `start` - Primeira aula, nada aberto ainda
-         * @enum {string}
-         */
-        ReasonEnum: "resume" | "next" | "start";
         Ref: {
             id: number;
             title: string;
