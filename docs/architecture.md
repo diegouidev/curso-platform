@@ -233,3 +233,38 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
 - **Layout:** grids de uma coluna usam `grid-cols-1` (`minmax(0, 1fr)`). Uma trilha
   `auto` cresce até a largura mínima de textos com `truncate` (sem quebra) e empurra a
   coluna para baixo da sidebar.
+
+### 14. Organização e configurações (Fase 6)
+
+- **Nada disso toca no Drive.** Títulos, ordem e itens ocultos existem só aqui, e a
+  sincronização preserva tudo (`title_is_custom`, `*_order_is_custom`).
+- **Títulos:** `PATCH /api/modules/{id}` e `/api/lessons/{id}` com `title` e `is_hidden`.
+  Título vazio restaura o nome derivado do Drive com **a mesma regra da importação**
+  (`drive_file_title`/`drive_module_title`, extraídas do `sync.py`): limpeza opcional e
+  prefixo de subpastas; o módulo da raiz volta a ser "Geral".
+- **Ordem:** `POST /api/reorder` recebe **todos** os filhos do pai, cada um uma vez (lista
+  incompleta, repetida ou com id de outro pai = 400). Reordenar só dentro do mesmo pai: o
+  módulo de uma aula é definido pela pasta no Drive, e a sincronização desfaria uma
+  mudança de módulo. `POST /api/courses/{id}/reset-order` aplica de novo a ordem natural
+  (módulo "Geral" primeiro, itens fora do Drive no fim) e limpa os flags.
+- **Arrastar e soltar** com `dnd-kit`: funciona com mouse, toque e teclado (espaço pega,
+  setas movem, espaço solta, Esc cancela), com anúncios em português para leitores de
+  tela. A lista muda na hora (otimista) e volta se a API recusar.
+- **Ocultar** tira o item da contagem de progresso, da navegação anterior/próxima, do
+  "continuar" e da busca. A página do curso avisa quantos itens estão ocultos.
+- **Capa:** `PUT`/`DELETE /api/courses/{id}/thumbnail` (JPEG, PNG, WebP ou GIF, até 5 MB,
+  validada pelo Pillow; SVG fica de fora por risco de script). Cada envio ganha um nome
+  novo, o que permite cache longo. As imagens são servidas por `/api/media/…` (o
+  `MEDIA_URL`) **com autenticação**: como `<img>` não envia o header `Bearer`, o cookie
+  httpOnly de refresh também é aceito ali (só leitura). Funciona igual com gunicorn, sem
+  depender do `runserver`.
+- **Backup:** `GET /api/export?type=json|md` (o parâmetro não é `format` porque o DRF usa
+  `?format=` para negociar o renderer). O JSON traz progresso, anotações, sessões e
+  preferências, só de aulas com dados, identificadas por pasta do curso + arquivo da
+  aula. O Markdown traz só as anotações, por curso e módulo.
+- **Restaurar** (`POST /api/import-backup`, multipart, até 20 MB) **mescla**: nunca
+  desmarca uma aula concluída, mantém a conclusão mais antiga, a anotação editada por
+  último vence (preservando a data original), tempo na página fica com o maior valor e
+  sessões entram uma vez só. Importar o mesmo arquivo duas vezes não muda nada. Cursos
+  ainda não importados aparecem no resumo para importar e restaurar de novo.
+- **Tema:** claro, escuro ou sistema (`next-themes`, guardado no navegador).
