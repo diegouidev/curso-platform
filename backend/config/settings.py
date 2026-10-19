@@ -139,6 +139,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": r"/api",
+    "ENUM_NAME_OVERRIDES": {
+        "ImportJobStatusEnum": "apps.courses.models.ImportJob.Status",
+        "ImportJobKindEnum": "apps.courses.models.ImportJob.Kind",
+    },
 }
 
 SIMPLE_JWT = {

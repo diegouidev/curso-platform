@@ -32,7 +32,20 @@ def progress_data(
     }
 
 
+class ImportStatsSerializer(serializers.Serializer):
+    modules_created = serializers.IntegerField()
+    modules_missing = serializers.IntegerField()
+    lessons_created = serializers.IntegerField()
+    lessons_updated = serializers.IntegerField()
+    lessons_missing = serializers.IntegerField()
+    lessons_restored = serializers.IntegerField()
+    attachments = serializers.IntegerField()
+    warnings = serializers.ListField(child=serializers.CharField())
+
+
 class ImportJobSerializer(serializers.ModelSerializer):
+    stats = serializers.SerializerMethodField(help_text="Only set once the job succeeded.")
+
     class Meta:
         model = ImportJob
         fields = [
@@ -50,6 +63,10 @@ class ImportJobSerializer(serializers.ModelSerializer):
             "finished_at",
         ]
         read_only_fields = fields
+
+    @extend_schema_field(ImportStatsSerializer(allow_null=True))
+    def get_stats(self, obj: ImportJob) -> dict | None:
+        return obj.stats or None
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
