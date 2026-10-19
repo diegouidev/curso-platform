@@ -68,6 +68,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["courses_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["courses_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["courses_partial_update"];
+        trace?: never;
+    };
+    "/api/courses/{id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["courses_sync_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["courses_import_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Google redirects here (directly on the backend). Authenticated by the one-time
+         *     `state` created in GoogleConnectView, not by the app session.
+         */
+        get: operations["google_callback_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/google/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Starts the OAuth flow. Opened as a full-page navigation, hence the cookie auth and
+         *     redirects (never JSON) for every outcome.
+         */
+        get: operations["google_connect_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/google/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["google_disconnect_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/google/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["google_status_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -84,6 +220,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/import-jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["import_jobs_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -92,12 +244,173 @@ export interface components {
             access: string;
             user: components["schemas"]["User"];
         };
+        Attachment: {
+            readonly id: number;
+            readonly title: string;
+            readonly drive_file_id: string;
+            readonly mime_type: string;
+            readonly view_url: string;
+        };
+        Course: {
+            readonly id: number;
+            readonly title: string;
+            /** @description Edited by the user: sync keeps it instead of the Drive name. */
+            readonly title_is_custom: boolean;
+            readonly description: string;
+            readonly drive_folder_id: string;
+            readonly drive_name_original: string;
+            readonly drive_url: string;
+            readonly thumbnail_url: string | null;
+            readonly is_archived: boolean;
+            /** @description Tidy Drive names into titles (extension, underscores...). */
+            readonly clean_titles: boolean;
+            /** Format: date-time */
+            readonly last_imported_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly progress: components["schemas"]["Progress"];
+            readonly latest_job: components["schemas"]["ImportJob"] | null;
+        };
+        CourseDetail: {
+            readonly id: number;
+            readonly title: string;
+            /** @description Edited by the user: sync keeps it instead of the Drive name. */
+            readonly title_is_custom: boolean;
+            readonly description: string;
+            readonly drive_folder_id: string;
+            readonly drive_name_original: string;
+            readonly drive_url: string;
+            readonly thumbnail_url: string | null;
+            readonly is_archived: boolean;
+            /** @description Tidy Drive names into titles (extension, underscores...). */
+            readonly clean_titles: boolean;
+            /** Format: date-time */
+            readonly last_imported_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly progress: components["schemas"]["Progress"];
+            readonly latest_job: components["schemas"]["ImportJob"] | null;
+            readonly modules: components["schemas"]["Module"][];
+        };
+        CourseExists: {
+            detail: string;
+            code: string;
+            course_id: number;
+        };
+        CourseImportRequest: {
+            /** @description Drive folder link (…/drive/folders/<id>, …?id=<id>) or bare folder id. */
+            folder: string;
+            /** @default true */
+            clean_titles: boolean;
+        };
+        CourseImportResponse: {
+            course: components["schemas"]["Course"];
+            job: components["schemas"]["ImportJob"];
+        };
+        GoogleStatus: {
+            /** @description Client ID/secret set on the server. */
+            configured: boolean;
+            connected: boolean;
+            needs_reconnect: boolean;
+            email: (string) | null;
+            scopes: string[];
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: date-time */
+            connected_at: string | null;
+        };
         Health: {
             status: string;
+        };
+        ImportJob: {
+            readonly id: number;
+            readonly course: number;
+            readonly kind: components["schemas"]["ImportJobKindEnum"];
+            readonly status: components["schemas"]["ImportJobStatusEnum"];
+            readonly folders_scanned: number;
+            readonly files_found: number;
+            /** @description Only set once the job succeeded. */
+            readonly stats: components["schemas"]["ImportStats"] | null;
+            readonly error_code: string;
+            readonly error_message: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            /** Format: date-time */
+            readonly finished_at: string | null;
+        };
+        /**
+         * @description * `import` - Importação
+         *     * `sync` - Sincronização
+         * @enum {string}
+         */
+        ImportJobKindEnum: "import" | "sync";
+        /**
+         * @description * `pending` - Na fila
+         *     * `running` - Em andamento
+         *     * `success` - Concluída
+         *     * `error` - Erro
+         * @enum {string}
+         */
+        ImportJobStatusEnum: "pending" | "running" | "success" | "error";
+        ImportStats: {
+            modules_created: number;
+            modules_missing: number;
+            lessons_created: number;
+            lessons_updated: number;
+            lessons_missing: number;
+            lessons_restored: number;
+            attachments: number;
+            warnings: string[];
+        };
+        LessonSummary: {
+            readonly id: number;
+            readonly title: string;
+            readonly title_is_custom: boolean;
+            readonly drive_file_id: string;
+            readonly drive_name_original: string;
+            readonly duration_seconds: number | null;
+            readonly order: number;
+            readonly is_hidden: boolean;
+            readonly missing_in_drive: boolean;
+            readonly completed: boolean;
+            readonly has_note: boolean;
+            readonly attachments: components["schemas"]["Attachment"][];
         };
         LoginRequest: {
             username: string;
             password: string;
+        };
+        Module: {
+            readonly id: number;
+            readonly title: string;
+            readonly title_is_custom: boolean;
+            readonly drive_folder_id: string | null;
+            readonly order: number;
+            readonly is_hidden: boolean;
+            readonly missing_in_drive: boolean;
+            readonly progress: components["schemas"]["Progress"];
+            readonly lessons: components["schemas"]["LessonSummary"][];
+            readonly attachments: components["schemas"]["Attachment"][];
+        };
+        PatchedCourseUpdateRequest: {
+            /** @description Empty string restores the title from the Drive folder name. */
+            title?: string;
+            description?: string;
+            is_archived?: boolean;
+            /** @description Tidy Drive names into titles (extension, underscores...). */
+            clean_titles?: boolean;
+        };
+        Progress: {
+            lessons_total: number;
+            lessons_completed: number;
+            /** @description 0-100, rounded down. */
+            percent: number;
+            duration_total_seconds: number;
+            duration_remaining_seconds: number;
+            /** @description True when at least one counted lesson has a known duration. */
+            has_durations: boolean;
         };
         User: {
             readonly id: number;
@@ -216,6 +529,208 @@ export interface operations {
             };
         };
     };
+    courses_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Course"][];
+                };
+            };
+        };
+    };
+    courses_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseDetail"];
+                };
+            };
+        };
+    };
+    courses_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCourseUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCourseUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCourseUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseDetail"];
+                };
+            };
+        };
+    };
+    courses_sync_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJob"];
+                };
+            };
+        };
+    };
+    courses_import_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourseImportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CourseImportRequest"];
+                "multipart/form-data": components["schemas"]["CourseImportRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseImportResponse"];
+                };
+            };
+            /** @description Folder already imported. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseExists"];
+                };
+            };
+        };
+    };
+    google_callback_retrieve: {
+        parameters: {
+            query?: {
+                code?: string;
+                error?: string;
+                state?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect back to the frontend. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    google_connect_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Frontend path to return to. */
+                next?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google consent screen. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    google_disconnect_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    google_status_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleStatus"];
+                };
+            };
+        };
+    };
     health_retrieve: {
         parameters: {
             query?: never;
@@ -231,6 +746,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    import_jobs_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJob"];
                 };
             };
         };

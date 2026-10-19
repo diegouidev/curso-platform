@@ -69,13 +69,42 @@ export const api = createClient<paths>({
   fetch: authFetch,
 });
 
-/** Extracts the DRF error message (`detail`) or falls back to a generic one. */
+/** Extracts a readable message from a DRF error body (`detail` or the first field error). */
 export function errorMessage(
   error: unknown,
   fallback = "Algo deu errado. Tente novamente.",
 ): string {
-  if (error && typeof error === "object" && "detail" in error && typeof error.detail === "string") {
-    return error.detail;
+  if (error && typeof error === "object") {
+    if ("detail" in error && typeof error.detail === "string") return error.detail;
+    for (const value of Object.values(error)) {
+      if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+    }
   }
   return fallback;
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string | undefined;
+  readonly body: unknown;
+
+  constructor(status: number, body: unknown, fallback?: string) {
+    super(errorMessage(body, fallback));
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+    this.code =
+      body && typeof body === "object" && "code" in body && typeof body.code === "string"
+        ? body.code
+        : undefined;
+  }
+}
+
+/** Turns an openapi-fetch result into data-or-throw, which is what TanStack Query expects. */
+export async function unwrap<T>(
+  request: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T> {
+  const { data, error, response } = await request;
+  if (!response.ok) throw new ApiError(response.status, error);
+  return data as T;
 }

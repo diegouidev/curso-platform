@@ -73,6 +73,195 @@ paths:
           description: ''
         '401':
           description: Sessão expirada. Faça login novamente.
+  /api/courses:
+    get:
+      operationId: courses_list
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+          description: ''
+  /api/courses/{id}:
+    get:
+      operationId: courses_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+    patch:
+      operationId: courses_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCourseUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCourseUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCourseUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/courses/{id}/sync:
+    post:
+      operationId: courses_sync_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
+  /api/courses/import:
+    post:
+      operationId: courses_import_create
+      tags:
+      - courses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseImportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseImportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseImportRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseImportResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseExists'
+          description: Folder already imported.
+  /api/google/callback:
+    get:
+      operationId: google_callback_retrieve
+      description: |-
+        Google redirects here (directly on the backend). Authenticated by the one-time
+        `state` created in GoogleConnectView, not by the app session.
+      parameters:
+      - in: query
+        name: code
+        schema:
+          type: string
+      - in: query
+        name: error
+        schema:
+          type: string
+      - in: query
+        name: state
+        schema:
+          type: string
+      tags:
+      - google
+      security:
+      - {}
+      responses:
+        '302':
+          description: Redirect back to the frontend.
+  /api/google/connect:
+    get:
+      operationId: google_connect_retrieve
+      description: |-
+        Starts the OAuth flow. Opened as a full-page navigation, hence the cookie auth and
+        redirects (never JSON) for every outcome.
+      parameters:
+      - in: query
+        name: next
+        schema:
+          type: string
+        description: Frontend path to return to.
+      tags:
+      - google
+      security:
+      - jwtAuth: []
+      - refreshCookie: []
+      - {}
+      responses:
+        '302':
+          description: Redirect to Google consent screen.
+  /api/google/disconnect:
+    post:
+      operationId: google_disconnect_create
+      tags:
+      - google
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/google/status:
+    get:
+      operationId: google_status_retrieve
+      tags:
+      - google
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleStatus'
+          description: ''
   /api/health:
     get:
       operationId: health_retrieve
@@ -87,6 +276,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
           description: ''
+  /api/import-jobs/{id}:
+    get:
+      operationId: import_jobs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+          description: ''
 components:
   schemas:
     AccessToken:
@@ -99,6 +308,247 @@ components:
       required:
       - access
       - user
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        drive_file_id:
+          type: string
+          readOnly: true
+        mime_type:
+          type: string
+          readOnly: true
+        view_url:
+          type: string
+          readOnly: true
+      required:
+      - drive_file_id
+      - id
+      - mime_type
+      - title
+      - view_url
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        title_is_custom:
+          type: boolean
+          readOnly: true
+          description: 'Edited by the user: sync keeps it instead of the Drive name.'
+        description:
+          type: string
+          readOnly: true
+        drive_folder_id:
+          type: string
+          readOnly: true
+        drive_name_original:
+          type: string
+          readOnly: true
+        drive_url:
+          type: string
+          readOnly: true
+        thumbnail_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_archived:
+          type: boolean
+          readOnly: true
+        clean_titles:
+          type: boolean
+          readOnly: true
+          description: Tidy Drive names into titles (extension, underscores...).
+        last_imported_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        progress:
+          allOf:
+          - $ref: '#/components/schemas/Progress'
+          readOnly: true
+        latest_job:
+          allOf:
+          - $ref: '#/components/schemas/ImportJob'
+          nullable: true
+          readOnly: true
+      required:
+      - clean_titles
+      - created_at
+      - description
+      - drive_folder_id
+      - drive_name_original
+      - drive_url
+      - id
+      - is_archived
+      - last_imported_at
+      - latest_job
+      - progress
+      - thumbnail_url
+      - title
+      - title_is_custom
+    CourseDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        title_is_custom:
+          type: boolean
+          readOnly: true
+          description: 'Edited by the user: sync keeps it instead of the Drive name.'
+        description:
+          type: string
+          readOnly: true
+        drive_folder_id:
+          type: string
+          readOnly: true
+        drive_name_original:
+          type: string
+          readOnly: true
+        drive_url:
+          type: string
+          readOnly: true
+        thumbnail_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_archived:
+          type: boolean
+          readOnly: true
+        clean_titles:
+          type: boolean
+          readOnly: true
+          description: Tidy Drive names into titles (extension, underscores...).
+        last_imported_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        progress:
+          allOf:
+          - $ref: '#/components/schemas/Progress'
+          readOnly: true
+        latest_job:
+          allOf:
+          - $ref: '#/components/schemas/ImportJob'
+          nullable: true
+          readOnly: true
+        modules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Module'
+          readOnly: true
+      required:
+      - clean_titles
+      - created_at
+      - description
+      - drive_folder_id
+      - drive_name_original
+      - drive_url
+      - id
+      - is_archived
+      - last_imported_at
+      - latest_job
+      - modules
+      - progress
+      - thumbnail_url
+      - title
+      - title_is_custom
+    CourseExists:
+      type: object
+      properties:
+        detail:
+          type: string
+        code:
+          type: string
+        course_id:
+          type: integer
+      required:
+      - code
+      - course_id
+      - detail
+    CourseImportRequest:
+      type: object
+      properties:
+        folder:
+          type: string
+          minLength: 1
+          description: Drive folder link (…/drive/folders/<id>, …?id=<id>) or bare
+            folder id.
+        clean_titles:
+          type: boolean
+          default: true
+      required:
+      - folder
+    CourseImportResponse:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/Course'
+        job:
+          $ref: '#/components/schemas/ImportJob'
+      required:
+      - course
+      - job
+    GoogleStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+          description: Client ID/secret set on the server.
+        connected:
+          type: boolean
+        needs_reconnect:
+          type: boolean
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        scopes:
+          type: array
+          items:
+            type: string
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        connected_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - configured
+      - connected
+      - connected_at
+      - email
+      - expires_at
+      - needs_reconnect
+      - scopes
     Health:
       type: object
       properties:
@@ -106,6 +556,172 @@ components:
           type: string
       required:
       - status
+    ImportJob:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        course:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/ImportJobKindEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportJobStatusEnum'
+          readOnly: true
+        folders_scanned:
+          type: integer
+          readOnly: true
+        files_found:
+          type: integer
+          readOnly: true
+        stats:
+          allOf:
+          - $ref: '#/components/schemas/ImportStats'
+          nullable: true
+          readOnly: true
+          description: Only set once the job succeeded.
+        error_code:
+          type: string
+          readOnly: true
+        error_message:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - course
+      - created_at
+      - error_code
+      - error_message
+      - files_found
+      - finished_at
+      - folders_scanned
+      - id
+      - kind
+      - stats
+      - status
+      - updated_at
+    ImportJobKindEnum:
+      enum:
+      - import
+      - sync
+      type: string
+      description: |-
+        * `import` - Importação
+        * `sync` - Sincronização
+    ImportJobStatusEnum:
+      enum:
+      - pending
+      - running
+      - success
+      - error
+      type: string
+      description: |-
+        * `pending` - Na fila
+        * `running` - Em andamento
+        * `success` - Concluída
+        * `error` - Erro
+    ImportStats:
+      type: object
+      properties:
+        modules_created:
+          type: integer
+        modules_missing:
+          type: integer
+        lessons_created:
+          type: integer
+        lessons_updated:
+          type: integer
+        lessons_missing:
+          type: integer
+        lessons_restored:
+          type: integer
+        attachments:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+      - attachments
+      - lessons_created
+      - lessons_missing
+      - lessons_restored
+      - lessons_updated
+      - modules_created
+      - modules_missing
+      - warnings
+    LessonSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        title_is_custom:
+          type: boolean
+          readOnly: true
+        drive_file_id:
+          type: string
+          readOnly: true
+        drive_name_original:
+          type: string
+          readOnly: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        order:
+          type: integer
+          readOnly: true
+        is_hidden:
+          type: boolean
+          readOnly: true
+        missing_in_drive:
+          type: boolean
+          readOnly: true
+        completed:
+          type: boolean
+          readOnly: true
+        has_note:
+          type: boolean
+          readOnly: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+          readOnly: true
+      required:
+      - attachments
+      - completed
+      - drive_file_id
+      - drive_name_original
+      - duration_seconds
+      - has_note
+      - id
+      - is_hidden
+      - missing_in_drive
+      - order
+      - title
+      - title_is_custom
     LoginRequest:
       type: object
       properties:
@@ -119,6 +735,94 @@ components:
       required:
       - password
       - username
+    Module:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        title_is_custom:
+          type: boolean
+          readOnly: true
+        drive_folder_id:
+          type: string
+          readOnly: true
+          nullable: true
+        order:
+          type: integer
+          readOnly: true
+        is_hidden:
+          type: boolean
+          readOnly: true
+        missing_in_drive:
+          type: boolean
+          readOnly: true
+        progress:
+          allOf:
+          - $ref: '#/components/schemas/Progress'
+          readOnly: true
+        lessons:
+          type: array
+          items:
+            $ref: '#/components/schemas/LessonSummary'
+          readOnly: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+          readOnly: true
+      required:
+      - attachments
+      - drive_folder_id
+      - id
+      - is_hidden
+      - lessons
+      - missing_in_drive
+      - order
+      - progress
+      - title
+      - title_is_custom
+    PatchedCourseUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Empty string restores the title from the Drive folder name.
+          maxLength: 255
+        description:
+          type: string
+        is_archived:
+          type: boolean
+        clean_titles:
+          type: boolean
+          description: Tidy Drive names into titles (extension, underscores...).
+    Progress:
+      type: object
+      properties:
+        lessons_total:
+          type: integer
+        lessons_completed:
+          type: integer
+        percent:
+          type: integer
+          description: 0-100, rounded down.
+        duration_total_seconds:
+          type: integer
+        duration_remaining_seconds:
+          type: integer
+        has_durations:
+          type: boolean
+          description: True when at least one counted lesson has a known duration.
+      required:
+      - duration_remaining_seconds
+      - duration_total_seconds
+      - has_durations
+      - lessons_completed
+      - lessons_total
+      - percent
     User:
       type: object
       properties:
@@ -145,3 +849,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
