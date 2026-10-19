@@ -1,0 +1,147 @@
+openapi: 3.0.3
+info:
+  title: Curso Platform API
+  version: 0.1.0
+  description: API pessoal de estudo sobre aulas hospedadas no Google Drive (somente
+    leitura).
+paths:
+  /api/auth/login:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+          description: ''
+        '401':
+          description: Usuário ou senha inválidos.
+  /api/auth/logout:
+    post:
+      operationId: auth_logout_create
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/auth/me:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/auth/refresh:
+    post:
+      operationId: auth_refresh_create
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+          description: ''
+        '401':
+          description: Sessão expirada. Faça login novamente.
+  /api/health:
+    get:
+      operationId: health_retrieve
+      tags:
+      - core
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+components:
+  schemas:
+    AccessToken:
+      type: object
+      properties:
+        access:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access
+      - user
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Endereço de email
+      required:
+      - email
+      - id
+      - username
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
