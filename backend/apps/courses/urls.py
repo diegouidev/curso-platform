@@ -10,6 +10,9 @@ from .views import (
     LessonCompleteView,
     LessonDetailView,
     LessonHeartbeatView,
+    LessonNoteView,
+    SearchView,
+    StatsView,
     StudyPreferencesView,
 )
 
@@ -22,6 +25,9 @@ urlpatterns = [
     path("lessons/<int:pk>", LessonDetailView.as_view(), name="lesson-detail"),
     path("lessons/<int:pk>/complete", LessonCompleteView.as_view(), name="lesson-complete"),
     path("lessons/<int:pk>/heartbeat", LessonHeartbeatView.as_view(), name="lesson-heartbeat"),
+    path("lessons/<int:pk>/note", LessonNoteView.as_view(), name="lesson-note"),
     path("continue", ContinueView.as_view(), name="continue"),
+    path("search", SearchView.as_view(), name="search"),
+    path("stats", StatsView.as_view(), name="stats"),
     path("preferences", StudyPreferencesView.as_view(), name="preferences"),
 ]

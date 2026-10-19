@@ -300,6 +300,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{id}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lessons_note_retrieve"];
+        put: operations["lessons_note_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/preferences": {
         parameters: {
             query?: never;
@@ -314,6 +330,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["preferences_partial_update"];
+        trace?: never;
+    };
+    "/api/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stats_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -543,6 +591,19 @@ export interface components {
             readonly lessons: components["schemas"]["LessonSummary"][];
             readonly attachments: components["schemas"]["Attachment"][];
         };
+        Note: {
+            /** @description Markdown. */
+            content: string;
+            /**
+             * Format: date-time
+             * @description Null when nothing was written yet.
+             */
+            readonly updated_at: string | null;
+        };
+        NoteRequest: {
+            /** @description Markdown. */
+            content: string;
+        };
         /** @enum {unknown} */
         NullEnum: null;
         PatchedCourseUpdateRequest: {
@@ -573,11 +634,71 @@ export interface components {
             id: number;
             title: string;
         };
+        SearchCourse: {
+            readonly id: number;
+            readonly title: string;
+            readonly thumbnail_url: string | null;
+            readonly is_archived: boolean;
+        };
+        SearchLesson: {
+            readonly id: number;
+            readonly title: string;
+            readonly course_id: number;
+            readonly course_title: string;
+            readonly module_title: string;
+            readonly missing_in_drive: boolean;
+            readonly completed: boolean;
+        };
+        SearchNote: {
+            lesson_id: number;
+            lesson_title: string;
+            course_id: number;
+            course_title: string;
+            /** @description Plain excerpt of the note around the match. */
+            snippet: string;
+            /** @description Match offset inside `snippet`. */
+            match_start: number;
+            /** @description 0 when the match couldn't be located. */
+            match_length: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SearchResults: {
+            query: string;
+            courses: components["schemas"]["SearchCourse"][];
+            lessons: components["schemas"]["SearchLesson"][];
+            notes: components["schemas"]["SearchNote"][];
+        };
+        StudyDay: {
+            /** Format: date */
+            date: string;
+            study_seconds: number;
+            completed: number;
+        };
         StudyPreferences: {
             /** @description Offer to mark a lesson as done after enough time on the page. */
             suggest_completion?: boolean;
             /** @description Time on the page, as a percentage of the video duration. */
             suggest_completion_percent?: number;
+        };
+        StudyStats: {
+            /** Format: date */
+            today: string;
+            /**
+             * Format: date
+             * @description Monday of the current week.
+             */
+            week_start: string;
+            completed_this_week: number;
+            completed_total: number;
+            study_seconds_this_week: number;
+            study_seconds_total: number;
+            /** @description Consecutive study days ending today (or yesterday, until today ends). */
+            streak_days: number;
+            longest_streak_days: number;
+            studied_today: boolean;
+            /** @description Last 7 days, oldest first. */
+            recent_days: components["schemas"]["StudyDay"][];
         };
         User: {
             readonly id: number;
@@ -1049,6 +1170,54 @@ export interface operations {
             };
         };
     };
+    lessons_note_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Note"];
+                };
+            };
+        };
+    };
+    lessons_note_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["NoteRequest"];
+                "multipart/form-data": components["schemas"]["NoteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Note"];
+                };
+            };
+        };
+    };
     preferences_retrieve: {
         parameters: {
             query?: never;
@@ -1089,6 +1258,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudyPreferences"];
+                };
+            };
+        };
+    };
+    search_retrieve: {
+        parameters: {
+            query?: {
+                /** @description At least 2 characters. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
+                };
+            };
+        };
+    };
+    stats_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyStats"];
                 };
             };
         };

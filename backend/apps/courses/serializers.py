@@ -406,3 +406,85 @@ class StudyPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudyPreferences
         fields = ["suggest_completion", "suggest_completion_percent"]
+
+
+# --- Notes, search and stats (phase 5) -----------------------------------------------------
+
+NOTE_MAX_LENGTH = 100_000
+
+
+class NoteSerializer(serializers.Serializer):
+    content = serializers.CharField(
+        allow_blank=True, trim_whitespace=False, max_length=NOTE_MAX_LENGTH, help_text="Markdown."
+    )
+    updated_at = serializers.DateTimeField(
+        read_only=True, allow_null=True, help_text="Null when nothing was written yet."
+    )
+
+
+class SearchCourseSerializer(CourseRefSerializer):
+    class Meta(CourseRefSerializer.Meta):
+        fields = [*CourseRefSerializer.Meta.fields, "is_archived"]
+        read_only_fields = fields
+
+
+class SearchLessonSerializer(serializers.ModelSerializer):
+    course_id = serializers.IntegerField(source="module.course_id", read_only=True)
+    course_title = serializers.CharField(source="module.course.title", read_only=True)
+    module_title = serializers.CharField(source="module.title", read_only=True)
+    completed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id",
+            "title",
+            "course_id",
+            "course_title",
+            "module_title",
+            "missing_in_drive",
+            "completed",
+        ]
+        read_only_fields = fields
+
+    def get_completed(self, obj: Lesson) -> bool:
+        return study.get_progress(obj).completed
+
+
+class SearchNoteSerializer(serializers.Serializer):
+    lesson_id = serializers.IntegerField(source="lesson.id")
+    lesson_title = serializers.CharField(source="lesson.title")
+    course_id = serializers.IntegerField(source="lesson.module.course_id")
+    course_title = serializers.CharField(source="lesson.module.course.title")
+    snippet = serializers.CharField(help_text="Plain excerpt of the note around the match.")
+    match_start = serializers.IntegerField(help_text="Match offset inside `snippet`.")
+    match_length = serializers.IntegerField(help_text="0 when the match couldn't be located.")
+    updated_at = serializers.DateTimeField()
+
+
+class SearchResultsSerializer(serializers.Serializer):
+    query = serializers.CharField()
+    courses = SearchCourseSerializer(many=True)
+    lessons = SearchLessonSerializer(many=True)
+    notes = SearchNoteSerializer(many=True)
+
+
+class StudyDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    study_seconds = serializers.IntegerField()
+    completed = serializers.IntegerField()
+
+
+class StudyStatsSerializer(serializers.Serializer):
+    today = serializers.DateField()
+    week_start = serializers.DateField(help_text="Monday of the current week.")
+    completed_this_week = serializers.IntegerField()
+    completed_total = serializers.IntegerField()
+    study_seconds_this_week = serializers.IntegerField()
+    study_seconds_total = serializers.IntegerField()
+    streak_days = serializers.IntegerField(
+        help_text="Consecutive study days ending today (or yesterday, until today ends)."
+    )
+    longest_streak_days = serializers.IntegerField()
+    studied_today = serializers.BooleanField()
+    recent_days = StudyDaySerializer(many=True, help_text="Last 7 days, oldest first.")

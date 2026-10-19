@@ -403,6 +403,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/LessonProgress'
           description: ''
+  /api/lessons/{id}/note:
+    get:
+      operationId: lessons_note_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+    put:
+      operationId: lessons_note_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NoteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NoteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
   /api/preferences:
     get:
       operationId: preferences_retrieve
@@ -440,6 +491,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StudyPreferences'
+          description: ''
+  /api/search:
+    get:
+      operationId: search_retrieve
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: At least 2 characters.
+      tags:
+      - search
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+          description: ''
+  /api/stats:
+    get:
+      operationId: stats_retrieve
+      tags:
+      - stats
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyStats'
           description: ''
 components:
   schemas:
@@ -1159,6 +1244,31 @@ components:
       - progress
       - title
       - title_is_custom
+    Note:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Markdown.
+          maxLength: 100000
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Null when nothing was written yet.
+      required:
+      - content
+      - updated_at
+    NoteRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Markdown.
+          maxLength: 100000
+      required:
+      - content
     NullEnum:
       enum:
       - null
@@ -1221,6 +1331,127 @@ components:
       required:
       - id
       - title
+    SearchCourse:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        thumbnail_url:
+          type: string
+          nullable: true
+          readOnly: true
+        is_archived:
+          type: boolean
+          readOnly: true
+      required:
+      - id
+      - is_archived
+      - thumbnail_url
+      - title
+    SearchLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        course_id:
+          type: integer
+          readOnly: true
+        course_title:
+          type: string
+          readOnly: true
+        module_title:
+          type: string
+          readOnly: true
+        missing_in_drive:
+          type: boolean
+          readOnly: true
+        completed:
+          type: boolean
+          readOnly: true
+      required:
+      - completed
+      - course_id
+      - course_title
+      - id
+      - missing_in_drive
+      - module_title
+      - title
+    SearchNote:
+      type: object
+      properties:
+        lesson_id:
+          type: integer
+        lesson_title:
+          type: string
+        course_id:
+          type: integer
+        course_title:
+          type: string
+        snippet:
+          type: string
+          description: Plain excerpt of the note around the match.
+        match_start:
+          type: integer
+          description: Match offset inside `snippet`.
+        match_length:
+          type: integer
+          description: 0 when the match couldn't be located.
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - course_id
+      - course_title
+      - lesson_id
+      - lesson_title
+      - match_length
+      - match_start
+      - snippet
+      - updated_at
+    SearchResults:
+      type: object
+      properties:
+        query:
+          type: string
+        courses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchCourse'
+        lessons:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchLesson'
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchNote'
+      required:
+      - courses
+      - lessons
+      - notes
+      - query
+    StudyDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        study_seconds:
+          type: integer
+        completed:
+          type: integer
+      required:
+      - completed
+      - date
+      - study_seconds
     StudyPreferences:
       type: object
       properties:
@@ -1232,6 +1463,48 @@ components:
           maximum: 100
           minimum: 50
           description: Time on the page, as a percentage of the video duration.
+    StudyStats:
+      type: object
+      properties:
+        today:
+          type: string
+          format: date
+        week_start:
+          type: string
+          format: date
+          description: Monday of the current week.
+        completed_this_week:
+          type: integer
+        completed_total:
+          type: integer
+        study_seconds_this_week:
+          type: integer
+        study_seconds_total:
+          type: integer
+        streak_days:
+          type: integer
+          description: Consecutive study days ending today (or yesterday, until today
+            ends).
+        longest_streak_days:
+          type: integer
+        studied_today:
+          type: boolean
+        recent_days:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudyDay'
+          description: Last 7 days, oldest first.
+      required:
+      - completed_this_week
+      - completed_total
+      - longest_streak_days
+      - recent_days
+      - streak_days
+      - studied_today
+      - study_seconds_this_week
+      - study_seconds_total
+      - today
+      - week_start
     User:
       type: object
       properties:

@@ -14,10 +14,11 @@ from apps.drive.client import drive_client
 
 from . import jobs
 from . import progress as study
-from .models import Course, ImportJob, Lesson, StudyPreferences
+from .models import Course, ImportJob, Lesson, Note, StudyPreferences
 from .naming import make_title
 from .queries import course_detail_queryset, course_list_queryset, lesson_detail_queryset
 from .scanner import get_root_folder
+from .search import search
 from .serializers import (
     ContinueSerializer,
     CourseDetailSerializer,
@@ -29,8 +30,12 @@ from .serializers import (
     ImportJobSerializer,
     LessonDetailSerializer,
     LessonProgressSerializer,
+    NoteSerializer,
+    SearchResultsSerializer,
     StudyPreferencesSerializer,
+    StudyStatsSerializer,
 )
+from .stats import study_stats
 
 CourseExists = inline_serializer(
     "CourseExists",
@@ -204,3 +209,42 @@ class StudyPreferencesView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+# --- Notes, search and stats (phase 5) -----------------------------------------------------
+
+
+class LessonNoteView(APIView):
+    @extend_schema(responses=NoteSerializer, tags=["notes"])
+    def get(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson, pk=pk)
+        note = Note.objects.filter(lesson=lesson).first()
+        data = {"content": note.content, "updated_at": note.updated_at} if note else None
+        return Response(NoteSerializer(data or {"content": "", "updated_at": None}).data)
+
+    @extend_schema(request=NoteSerializer, responses=NoteSerializer, tags=["notes"])
+    def put(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson, pk=pk)
+        payload = NoteSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        note, _ = Note.objects.update_or_create(
+            lesson=lesson, defaults={"content": payload.validated_data["content"]}
+        )
+        return Response(NoteSerializer(note).data)
+
+
+class SearchView(APIView):
+    @extend_schema(
+        parameters=[OpenApiParameter("q", str, description="At least 2 characters.")],
+        responses=SearchResultsSerializer,
+        tags=["search"],
+    )
+    def get(self, request: Request) -> Response:
+        results = search(request.query_params.get("q", ""))
+        return Response(SearchResultsSerializer(results).data)
+
+
+class StatsView(APIView):
+    @extend_schema(responses=StudyStatsSerializer, tags=["stats"])
+    def get(self, request: Request) -> Response:
+        return Response(StudyStatsSerializer(study_stats()).data)
