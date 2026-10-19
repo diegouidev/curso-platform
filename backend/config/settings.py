@@ -103,7 +103,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_URL = "media/"
+# Served by the API (apps.core.views.MediaView) behind auth, through the Next.js /api proxy.
+MEDIA_URL = "/api/media/"
 MEDIA_ROOT = DATA_DIR / "media"
 
 # The API is mounted without trailing slashes (/api/auth/login).

@@ -159,6 +159,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/CourseDetail'
           description: ''
+  /api/courses/{id}/reset-order:
+    post:
+      operationId: courses_reset_order_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - organize
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
   /api/courses/{id}/sync:
     post:
       operationId: courses_sync_create
@@ -179,6 +199,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportJob'
           description: ''
+  /api/courses/{id}/thumbnail:
+    put:
+      operationId: courses_thumbnail_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ThumbnailUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+    delete:
+      operationId: courses_thumbnail_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/courses/import:
     post:
       operationId: courses_import_create
@@ -211,6 +272,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/CourseExists'
           description: Folder already imported.
+  /api/export:
+    get:
+      operationId: export_retrieve
+      parameters:
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - json
+          - md
+        description: 'json: full backup (progress, notes, sessions). md: notes only.'
+      tags:
+      - backup
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: File download.
   /api/google/callback:
     get:
       operationId: google_callback_retrieve
@@ -296,6 +381,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
           description: ''
+  /api/import-backup:
+    post:
+      operationId: import_backup_create
+      tags:
+      - backup
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BackupUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreStats'
+          description: ''
   /api/import-jobs/{id}:
     get:
       operationId: import_jobs_retrieve
@@ -319,6 +424,7 @@ paths:
   /api/lessons/{id}:
     get:
       operationId: lessons_retrieve
+      description: GET (player data) comes from LessonDetailView; PATCH edits title/visibility.
       parameters:
       - in: path
         name: id
@@ -335,6 +441,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LessonDetail'
+          description: ''
+    patch:
+      operationId: lessons_partial_update
+      description: GET (player data) comes from LessonDetailView; PATCH edits title/visibility.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - organize
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedItemUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedItemUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedItemUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonSummary'
           description: ''
   /api/lessons/{id}/complete:
     post:
@@ -454,6 +591,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/Note'
           description: ''
+  /api/modules/{id}:
+    patch:
+      operationId: modules_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - organize
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedItemUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedItemUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedItemUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Module'
+          description: ''
   /api/preferences:
     get:
       operationId: preferences_retrieve
@@ -492,6 +660,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/StudyPreferences'
           description: ''
+  /api/reorder:
+    post:
+      operationId: reorder_create
+      tags:
+      - organize
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/search:
     get:
       operationId: search_retrieve
@@ -567,6 +757,15 @@ components:
       - preview_url
       - title
       - view_url
+    BackupUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+          description: JSON exported by GET /api/export.
+      required:
+      - file
     Continue:
       type: object
       properties:
@@ -1286,6 +1485,15 @@ components:
         clean_titles:
           type: boolean
           description: Tidy Drive names into titles (extension, underscores...).
+    PatchedItemUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Empty string restores the title derived from the Drive name.
+          maxLength: 500
+        is_hidden:
+          type: boolean
     PatchedStudyPreferencesRequest:
       type: object
       properties:
@@ -1331,6 +1539,60 @@ components:
       required:
       - id
       - title
+    ReorderKindEnum:
+      enum:
+      - modules
+      - lessons
+      type: string
+      description: |-
+        * `modules` - Módulos
+        * `lessons` - Aulas
+    ReorderRequest:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ReorderKindEnum'
+        parent_id:
+          type: integer
+          description: Course id for modules, module id for lessons.
+        ids:
+          type: array
+          items:
+            type: integer
+          description: Every child, in order.
+          maxItems: 5000
+      required:
+      - ids
+      - kind
+      - parent_id
+    RestoreStats:
+      type: object
+      properties:
+        lessons_matched:
+          type: integer
+        lessons_not_found:
+          type: integer
+        progress_updated:
+          type: integer
+        notes_restored:
+          type: integer
+        sessions_added:
+          type: integer
+        preferences_restored:
+          type: boolean
+        courses_not_found:
+          type: array
+          items:
+            type: string
+          description: Titles of courses not imported here yet.
+      required:
+      - courses_not_found
+      - lessons_matched
+      - lessons_not_found
+      - notes_restored
+      - preferences_restored
+      - progress_updated
+      - sessions_added
     SearchCourse:
       type: object
       properties:
@@ -1505,6 +1767,15 @@ components:
       - study_seconds_total
       - today
       - week_start
+    ThumbnailUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+          description: JPEG, PNG, WebP or GIF, up to 5 MB.
+      required:
+      - file
     User:
       type: object
       properties:

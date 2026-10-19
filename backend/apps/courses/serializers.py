@@ -1,3 +1,4 @@
+from django.core.files.uploadedfile import UploadedFile
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -488,3 +489,99 @@ class StudyStatsSerializer(serializers.Serializer):
     longest_streak_days = serializers.IntegerField()
     studied_today = serializers.BooleanField()
     recent_days = StudyDaySerializer(many=True, help_text="Last 7 days, oldest first.")
+
+
+# --- Organization and backup (phase 6) ----------------------------------------------------
+
+THUMBNAIL_MAX_BYTES = 5 * 1024 * 1024
+THUMBNAIL_FORMATS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp", "GIF": "gif"}
+
+
+class ItemUpdateSerializer(serializers.Serializer):
+    title = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=500,
+        help_text="Empty string restores the title derived from the Drive name.",
+    )
+    is_hidden = serializers.BooleanField(required=False)
+
+
+class ReorderSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=[("modules", "Módulos"), ("lessons", "Aulas")])
+    parent_id = serializers.IntegerField(help_text="Course id for modules, module id for lessons.")
+    ids = serializers.ListField(
+        child=serializers.IntegerField(), max_length=5000, help_text="Every child, in order."
+    )
+
+
+class ThumbnailUploadSerializer(serializers.Serializer):
+    file = serializers.ImageField(help_text="JPEG, PNG, WebP or GIF, up to 5 MB.")
+
+    def validate_file(self, value: UploadedFile) -> UploadedFile:
+        if value.size > THUMBNAIL_MAX_BYTES:
+            raise serializers.ValidationError("A imagem precisa ter no máximo 5 MB.")
+        if getattr(value.image, "format", None) not in THUMBNAIL_FORMATS:
+            raise serializers.ValidationError("Use uma imagem JPEG, PNG, WebP ou GIF.")
+        return value
+
+
+class BackupProgressSerializer(serializers.Serializer):
+    completed = serializers.BooleanField()
+    completed_at = serializers.DateTimeField(allow_null=True, required=False)
+    last_opened_at = serializers.DateTimeField(allow_null=True, required=False)
+    time_on_page_seconds = serializers.IntegerField(min_value=0, default=0)
+
+
+class BackupNoteSerializer(serializers.Serializer):
+    content = serializers.CharField(
+        allow_blank=True, trim_whitespace=False, max_length=NOTE_MAX_LENGTH
+    )
+    updated_at = serializers.DateTimeField(allow_null=True, required=False)
+
+
+class BackupSessionSerializer(serializers.Serializer):
+    started_at = serializers.DateTimeField()
+    ended_at = serializers.DateTimeField()
+    seconds = serializers.IntegerField(min_value=0)
+
+
+class BackupLessonSerializer(serializers.Serializer):
+    drive_file_id = serializers.CharField(max_length=128)
+    title = serializers.CharField(allow_blank=True, required=False)
+    module = serializers.CharField(allow_blank=True, required=False)
+    progress = BackupProgressSerializer(allow_null=True, required=False)
+    note = BackupNoteSerializer(allow_null=True, required=False)
+    sessions = BackupSessionSerializer(many=True, required=False, default=list)
+
+
+class BackupCourseSerializer(serializers.Serializer):
+    drive_folder_id = serializers.CharField(max_length=128)
+    title = serializers.CharField(allow_blank=True)
+    lessons = BackupLessonSerializer(many=True)
+
+
+class BackupSerializer(serializers.Serializer):
+    """Structure of the exported JSON; validates a file before anything is restored."""
+
+    format = serializers.ChoiceField(choices=[("curso-platform-backup", "curso-platform-backup")])
+    version = serializers.IntegerField(min_value=1, max_value=1)
+    exported_at = serializers.DateTimeField(required=False)
+    preferences = StudyPreferencesSerializer(required=False, allow_null=True)
+    courses = BackupCourseSerializer(many=True)
+
+
+class BackupUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(help_text="JSON exported by GET /api/export.")
+
+
+class RestoreStatsSerializer(serializers.Serializer):
+    lessons_matched = serializers.IntegerField()
+    lessons_not_found = serializers.IntegerField()
+    progress_updated = serializers.IntegerField()
+    notes_restored = serializers.IntegerField()
+    sessions_added = serializers.IntegerField()
+    preferences_restored = serializers.BooleanField()
+    courses_not_found = serializers.ListField(
+        child=serializers.CharField(), help_text="Titles of courses not imported here yet."
+    )

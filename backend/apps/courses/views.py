@@ -1,4 +1,11 @@
+import json
+from uuid import uuid4
+
+from django.db.models import Prefetch
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiResponse,
@@ -6,20 +13,29 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 from rest_framework import serializers, status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.drive.client import drive_client
 
-from . import jobs
+from . import backup, jobs, organize
 from . import progress as study
-from .models import Course, ImportJob, Lesson, Note, StudyPreferences
+from .models import Course, ImportJob, Lesson, Module, Note, StudyPreferences
 from .naming import make_title
-from .queries import course_detail_queryset, course_list_queryset, lesson_detail_queryset
+from .queries import (
+    course_detail_queryset,
+    course_list_queryset,
+    lesson_detail_queryset,
+    lessons_queryset,
+)
 from .scanner import get_root_folder
 from .search import search
 from .serializers import (
+    THUMBNAIL_FORMATS,
+    BackupSerializer,
+    BackupUploadSerializer,
     ContinueSerializer,
     CourseDetailSerializer,
     CourseImportResponseSerializer,
@@ -28,12 +44,18 @@ from .serializers import (
     CourseUpdateSerializer,
     HeartbeatSerializer,
     ImportJobSerializer,
+    ItemUpdateSerializer,
     LessonDetailSerializer,
     LessonProgressSerializer,
+    LessonSummarySerializer,
+    ModuleSerializer,
     NoteSerializer,
+    ReorderSerializer,
+    RestoreStatsSerializer,
     SearchResultsSerializer,
     StudyPreferencesSerializer,
     StudyStatsSerializer,
+    ThumbnailUploadSerializer,
 )
 from .stats import study_stats
 
@@ -248,3 +270,159 @@ class StatsView(APIView):
     @extend_schema(responses=StudyStatsSerializer, tags=["stats"])
     def get(self, request: Request) -> Response:
         return Response(StudyStatsSerializer(study_stats()).data)
+
+
+# --- Organization and backup (phase 6) ----------------------------------------------------
+
+
+def _course_detail(pk: int) -> Response:
+    return Response(CourseDetailSerializer(course_detail_queryset().get(pk=pk)).data)
+
+
+def _apply_item_update(item: Module | Lesson, data: dict) -> None:
+    if "title" in data:
+        organize.set_title(item, data["title"])
+    if "is_hidden" in data:
+        item.is_hidden = data["is_hidden"]
+    item.save(update_fields=["title", "title_is_custom", "is_hidden"])
+
+
+class ModuleUpdateView(APIView):
+    @extend_schema(request=ItemUpdateSerializer, responses=ModuleSerializer, tags=["organize"])
+    def patch(self, request: Request, pk: int) -> Response:
+        module = get_object_or_404(Module.objects.select_related("course"), pk=pk)
+        payload = ItemUpdateSerializer(data=request.data, partial=True)
+        payload.is_valid(raise_exception=True)
+        _apply_item_update(module, payload.validated_data)
+        module = Module.objects.prefetch_related(
+            Prefetch("lessons", queryset=lessons_queryset()), "attachments"
+        ).get(pk=pk)
+        return Response(ModuleSerializer(module).data)
+
+
+class LessonUpdateView(LessonDetailView):
+    """GET (player data) comes from LessonDetailView; PATCH edits title/visibility."""
+
+    @extend_schema(
+        request=ItemUpdateSerializer, responses=LessonSummarySerializer, tags=["organize"]
+    )
+    def patch(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson.objects.select_related("module__course"), pk=pk)
+        payload = ItemUpdateSerializer(data=request.data, partial=True)
+        payload.is_valid(raise_exception=True)
+        _apply_item_update(lesson, payload.validated_data)
+        return Response(LessonSummarySerializer(lessons_queryset().get(pk=pk)).data)
+
+
+class ReorderView(APIView):
+    @extend_schema(request=ReorderSerializer, responses={204: None}, tags=["organize"])
+    def post(self, request: Request) -> Response:
+        payload = ReorderSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        parent = Course if data["kind"] == "modules" else Module
+        get_object_or_404(parent, pk=data["parent_id"])
+        organize.reorder(data["kind"], data["parent_id"], data["ids"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CourseResetOrderView(APIView):
+    @extend_schema(request=None, responses=CourseDetailSerializer, tags=["organize"])
+    def post(self, request: Request, pk: int) -> Response:
+        organize.reset_order(get_object_or_404(Course, pk=pk))
+        return _course_detail(pk)
+
+
+class CourseThumbnailView(APIView):
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        request={"multipart/form-data": ThumbnailUploadSerializer},
+        responses=CourseDetailSerializer,
+        tags=["courses"],
+    )
+    def put(self, request: Request, pk: int) -> Response:
+        course = get_object_or_404(Course, pk=pk)
+        payload = ThumbnailUploadSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        image = payload.validated_data["file"]
+        previous = course.thumbnail.name if course.thumbnail else None
+        extension = THUMBNAIL_FORMATS[image.image.format]
+        # A new name per upload, so the long browser cache never shows a stale cover.
+        course.thumbnail.save(f"course-{course.pk}-{uuid4().hex[:12]}.{extension}", image)
+        if previous:
+            course.thumbnail.storage.delete(previous)
+        return _course_detail(pk)
+
+    @extend_schema(request=None, responses=CourseDetailSerializer, tags=["courses"])
+    def delete(self, request: Request, pk: int) -> Response:
+        course = get_object_or_404(Course, pk=pk)
+        if course.thumbnail:
+            course.thumbnail.delete(save=True)
+        return _course_detail(pk)
+
+
+class ExportView(APIView):
+    @extend_schema(
+        parameters=[
+            # Not "format": DRF reserves ?format= for content negotiation.
+            OpenApiParameter(
+                "type",
+                str,
+                enum=["json", "md"],
+                description="json: full backup (progress, notes, sessions). md: notes only.",
+            )
+        ],
+        responses={200: OpenApiResponse(OpenApiTypes.BINARY, description="File download.")},
+        tags=["backup"],
+    )
+    def get(self, request: Request) -> HttpResponse:
+        kind = request.query_params.get("type", "json")
+        stamp = timezone.localdate().isoformat()
+        if kind == "md":
+            response = HttpResponse(
+                backup.export_notes_markdown(), content_type="text/markdown; charset=utf-8"
+            )
+            filename = f"anotacoes-{stamp}.md"
+        else:
+            content = json.dumps(backup.export_data(), ensure_ascii=False, indent=2)
+            response = HttpResponse(content, content_type="application/json; charset=utf-8")
+            filename = f"backup-estudos-{stamp}.json"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+
+class ImportBackupView(APIView):
+    parser_classes = [MultiPartParser]
+    MAX_BYTES = 20 * 1024 * 1024
+
+    @extend_schema(
+        request={"multipart/form-data": BackupUploadSerializer},
+        responses=RestoreStatsSerializer,
+        tags=["backup"],
+    )
+    def post(self, request: Request) -> Response:
+        upload = BackupUploadSerializer(data=request.data)
+        upload.is_valid(raise_exception=True)
+        file = upload.validated_data["file"]
+        if file.size > self.MAX_BYTES:
+            return _invalid_backup("O arquivo tem mais de 20 MB.")
+        try:
+            raw = json.loads(file.read().decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return _invalid_backup("O arquivo não é um JSON válido.")
+        payload = BackupSerializer(data=raw)
+        if not payload.is_valid():
+            return _invalid_backup(
+                "Este arquivo não é um backup desta plataforma (ou está corrompido).",
+                errors=payload.errors,
+            )
+        stats = backup.restore(payload.validated_data)
+        return Response(RestoreStatsSerializer(stats.as_dict()).data)
+
+
+def _invalid_backup(message: str, errors: object = None) -> Response:
+    body: dict = {"detail": message, "code": "invalid_backup"}
+    if errors:
+        body["errors"] = errors
+    return Response(body, status=status.HTTP_400_BAD_REQUEST)

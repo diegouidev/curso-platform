@@ -43,18 +43,27 @@ def _is_native_doc(mime_type: str) -> bool:
     return mime_type.startswith("application/vnd.google-apps.")
 
 
-def _file_title(file: ScannedFile, clean: bool) -> str:
-    title = make_title(file.name, is_file=not _is_native_doc(file.mime_type), clean=clean)
-    if not file.path:
+def drive_file_title(name: str, mime_type: str, path: list[str], *, clean: bool) -> str:
+    """Title derived from the Drive: nested folders prefix it ("Parte 1 / Aula 3")."""
+    title = make_title(name, is_file=not _is_native_doc(mime_type), clean=clean)
+    if not path:
         return title
-    folders = [make_title(part, is_file=False, clean=clean) for part in file.path]
+    folders = [make_title(part, is_file=False, clean=clean) for part in path]
     return PATH_SEPARATOR.join([*folders, title])
 
 
-def _module_title(module: ScannedModule, clean: bool) -> str:
-    if module.is_root:
+def drive_module_title(name: str, *, is_root: bool, clean: bool) -> str:
+    if is_root:
         return GENERAL_MODULE_TITLE
-    return make_title(module.name, is_file=False, clean=clean)
+    return make_title(name, is_file=False, clean=clean)
+
+
+def _file_title(file: ScannedFile, clean: bool) -> str:
+    return drive_file_title(file.name, file.mime_type, file.path, clean=clean)
+
+
+def _module_title(module: ScannedModule, clean: bool) -> str:
+    return drive_module_title(module.name, is_root=module.is_root, clean=clean)
 
 
 def _sort_files(files: list[ScannedFile]) -> list[ScannedFile]:

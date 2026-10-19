@@ -116,6 +116,22 @@ export interface paths {
         patch: operations["courses_partial_update"];
         trace?: never;
     };
+    "/api/courses/{id}/reset-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["courses_reset_order_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{id}/sync": {
         parameters: {
             query?: never;
@@ -132,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/{id}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["courses_thumbnail_update"];
+        post?: never;
+        delete: operations["courses_thumbnail_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/import": {
         parameters: {
             query?: never;
@@ -142,6 +174,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["courses_import_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["export_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -236,6 +284,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/import-backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["import_backup_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/import-jobs/{id}": {
         parameters: {
             query?: never;
@@ -259,13 +323,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description GET (player data) comes from LessonDetailView; PATCH edits title/visibility. */
         get: operations["lessons_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** @description GET (player data) comes from LessonDetailView; PATCH edits title/visibility. */
+        patch: operations["lessons_partial_update"];
         trace?: never;
     };
     "/api/lessons/{id}/complete": {
@@ -316,6 +382,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/modules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["modules_partial_update"];
+        trace?: never;
+    };
     "/api/preferences": {
         parameters: {
             query?: never;
@@ -330,6 +412,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["preferences_partial_update"];
+        trace?: never;
+    };
+    "/api/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reorder_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/search": {
@@ -380,6 +478,13 @@ export interface components {
             readonly view_url: string;
             /** @description Embeddable preview (iframe). */
             readonly preview_url: string;
+        };
+        BackupUploadRequest: {
+            /**
+             * Format: binary
+             * @description JSON exported by GET /api/export.
+             */
+            file: string;
         };
         Continue: {
             /** @description Null when everything is done. */
@@ -614,6 +719,11 @@ export interface components {
             /** @description Tidy Drive names into titles (extension, underscores...). */
             clean_titles?: boolean;
         };
+        PatchedItemUpdateRequest: {
+            /** @description Empty string restores the title derived from the Drive name. */
+            title?: string;
+            is_hidden?: boolean;
+        };
         PatchedStudyPreferencesRequest: {
             /** @description Offer to mark a lesson as done after enough time on the page. */
             suggest_completion?: boolean;
@@ -633,6 +743,29 @@ export interface components {
         Ref: {
             id: number;
             title: string;
+        };
+        /**
+         * @description * `modules` - Módulos
+         *     * `lessons` - Aulas
+         * @enum {string}
+         */
+        ReorderKindEnum: "modules" | "lessons";
+        ReorderRequest: {
+            kind: components["schemas"]["ReorderKindEnum"];
+            /** @description Course id for modules, module id for lessons. */
+            parent_id: number;
+            /** @description Every child, in order. */
+            ids: number[];
+        };
+        RestoreStats: {
+            lessons_matched: number;
+            lessons_not_found: number;
+            progress_updated: number;
+            notes_restored: number;
+            sessions_added: number;
+            preferences_restored: boolean;
+            /** @description Titles of courses not imported here yet. */
+            courses_not_found: string[];
         };
         SearchCourse: {
             readonly id: number;
@@ -699,6 +832,13 @@ export interface components {
             studied_today: boolean;
             /** @description Last 7 days, oldest first. */
             recent_days: components["schemas"]["StudyDay"][];
+        };
+        ThumbnailUploadRequest: {
+            /**
+             * Format: binary
+             * @description JPEG, PNG, WebP or GIF, up to 5 MB.
+             */
+            file: string;
         };
         User: {
             readonly id: number;
@@ -906,6 +1046,27 @@ export interface operations {
             };
         };
     };
+    courses_reset_order_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseDetail"];
+                };
+            };
+        };
+    };
     courses_sync_create: {
         parameters: {
             query?: never;
@@ -924,6 +1085,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ImportJob"];
                 };
+            };
+        };
+    };
+    courses_thumbnail_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ThumbnailUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseDetail"];
+                };
+            };
+        };
+    };
+    courses_thumbnail_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -957,6 +1163,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CourseExists"];
+                };
+            };
+        };
+    };
+    export_retrieve: {
+        parameters: {
+            query?: {
+                /** @description json: full backup (progress, notes, sessions). md: notes only. */
+                type?: "json" | "md";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File download. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
         };
@@ -1060,6 +1289,29 @@ export interface operations {
             };
         };
     };
+    import_backup_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["BackupUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreStats"];
+                };
+            };
+        };
+    };
     import_jobs_retrieve: {
         parameters: {
             query?: never;
@@ -1098,6 +1350,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LessonDetail"];
+                };
+            };
+        };
+    };
+    lessons_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedItemUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedItemUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedItemUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonSummary"];
                 };
             };
         };
@@ -1218,6 +1497,33 @@ export interface operations {
             };
         };
     };
+    modules_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedItemUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedItemUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedItemUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Module"];
+                };
+            };
+        };
+    };
     preferences_retrieve: {
         parameters: {
             query?: never;
@@ -1259,6 +1565,30 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["StudyPreferences"];
                 };
+            };
+        };
+    };
+    reorder_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReorderRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReorderRequest"];
+                "multipart/form-data": components["schemas"]["ReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
