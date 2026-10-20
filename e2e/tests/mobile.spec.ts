@@ -40,3 +40,53 @@ test("no celular a lista de aulas vira gaveta e nada transborda", async ({ page,
   await expect(page).toHaveURL(lessonUrl(s, "Aula 1"));
   await expect(drawer).toBeHidden();
 });
+
+test("no celular o player deixa espaço para os controles do Drive", async ({ page, seed }) => {
+  const s = await seed();
+  await page.goto(lessonUrl(s, "01 - Introdução"));
+  const box = page.locator('[data-fullscreen="off"]');
+  await expect(box).toBeVisible();
+
+  // The Drive mobile layout needs ~16:9 + 80px; the box gives 16:9 + 6rem (96px).
+  const { width, height } = (await box.boundingBox())!;
+  expect(height).toBeGreaterThanOrEqual(width * 0.5625 + 90);
+  await expect(page.getByRole("button", { name: "Tela cheia" })).toBeInViewport();
+});
+
+test("tela cheia sem Fullscreen API (iPhone) expande o player sem recarregar o vídeo", async ({
+  page,
+  seed,
+}) => {
+  // iPhone Safari: no element fullscreen.
+  await page.addInitScript(() => {
+    Object.defineProperty(Document.prototype, "fullscreenEnabled", { get: () => false });
+  });
+  const s = await seed();
+  await page.goto(lessonUrl(s, "01 - Introdução"));
+  const video = page.locator('iframe[title^="Vídeo:"]');
+  await expect(video).toBeVisible();
+  await video.evaluate((frame) => frame.setAttribute("data-same-element", "yes"));
+
+  await page.getByRole("button", { name: "Tela cheia" }).click();
+
+  const box = page.locator('[data-fullscreen="expanded"]');
+  await expect(box).toBeVisible();
+  const viewport = page.viewportSize()!;
+  const rect = (await box.boundingBox())!;
+  expect(Math.round(rect.x)).toBe(0);
+  expect(Math.round(rect.y)).toBe(0);
+  expect(Math.round(rect.width)).toBe(viewport.width);
+  expect(Math.round(rect.height)).toBe(viewport.height);
+  const exit = page.getByRole("button", { name: "Sair da tela cheia" });
+  await expect(exit).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
+  // Same iframe element: the video was not reloaded.
+  await expect(video).toHaveAttribute("data-same-element", "yes");
+
+  await exit.click();
+
+  await expect(page.locator('[data-fullscreen="off"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tela cheia" })).toBeFocused();
+  await expect(video).toHaveAttribute("data-same-element", "yes");
+  expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+});

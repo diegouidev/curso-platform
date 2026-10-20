@@ -21,6 +21,8 @@ type Props = {
   /** The iframe hasn't loaded after a while: show the hint as an alert instead of a link. */
   prominent: boolean;
   onReload: () => void;
+  /** Extra controls shown next to "Abrir no Drive" (e.g. the fullscreen button). */
+  actions?: React.ReactNode;
 };
 
 /** `authuser` makes Google pick that account in a new tab (it can show the account chooser). */
@@ -28,7 +30,7 @@ export function withAuthUser(url: string, email: string | null | undefined): str
   return email ? `${url}?authuser=${encodeURIComponent(email)}` : url;
 }
 
-export function VideoHelp({ driveUrl, prominent, onReload }: Props) {
+export function VideoHelp({ driveUrl, prominent, onReload, actions }: Props) {
   const { data: google } = useGoogleStatus();
   const email = google?.email;
   const openUrl = withAuthUser(driveUrl, email);
@@ -64,17 +66,20 @@ export function VideoHelp({ driveUrl, prominent, onReload }: Props) {
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           {trigger}
-          <a
-            href={openUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 rounded-sm text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <ExternalLink className="size-3.5" aria-hidden /> Abrir no Drive
-            <span className="sr-only">(nova aba)</span>
-          </a>
+          <div className="flex items-center gap-4">
+            <a
+              href={openUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 rounded-sm text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <ExternalLink className="size-3.5" aria-hidden /> Abrir no Drive
+              <span className="sr-only">(nova aba)</span>
+            </a>
+            {actions}
+          </div>
         </div>
       )}
 

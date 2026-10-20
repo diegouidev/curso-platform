@@ -39,7 +39,7 @@ import { AttachmentList } from "@/features/lessons/attachment-list";
 import { LessonOutline } from "@/features/lessons/lesson-outline";
 import { LESSON_SHORTCUTS, useLessonShortcuts } from "@/features/lessons/use-lesson-shortcuts";
 import { useTimeOnPage } from "@/features/lessons/use-time-on-page";
-import { VideoPlayer } from "@/features/lessons/video-player";
+import { VideoPlayer, type VideoPlayerControls } from "@/features/lessons/video-player";
 import { withAuthUser } from "@/features/lessons/video-help";
 import { NoteEditor } from "@/features/notes/note-editor";
 import { ApiError } from "@/lib/api/client";
@@ -111,7 +111,7 @@ type PlayerProps = {
 function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMode }: PlayerProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerRef = useRef<VideoPlayerControls>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const setCompleted = useSetCompleted(lesson);
   const { data: preferences } = usePreferences();
@@ -175,9 +175,7 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
     [LESSON_SHORTCUTS.complete]: toggleCompleted,
     [LESSON_SHORTCUTS.next]: () => goTo(lesson.next),
     [LESSON_SHORTCUTS.previous]: () => goTo(lesson.previous),
-    [LESSON_SHORTCUTS.fullscreen]: () => {
-      void iframeRef.current?.requestFullscreen?.().catch(() => undefined);
-    },
+    [LESSON_SHORTCUTS.fullscreen]: () => playerRef.current?.toggleFullscreen(),
     [LESSON_SHORTCUTS.focus]: onToggleFocusMode,
   });
 
@@ -241,7 +239,7 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
             embedUrl={lesson.embed_url}
             driveUrl={lesson.drive_url}
             title={lesson.title}
-            iframeRef={iframeRef}
+            controlsRef={playerRef}
           />
         ) : (
           <MissingInDrive driveUrl={withAuthUser(lesson.drive_url, google?.email)} />

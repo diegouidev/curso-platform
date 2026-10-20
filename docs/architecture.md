@@ -171,6 +171,19 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
   contas abertas, cookies de terceiros (Safari/Chrome/Firefox) e vídeo recém-enviado. O
   "Abrir no Drive" usa `?authuser=<e-mail conectado>` para o Google escolher a conta certa
   numa aba nova.
+- **Altura do player no celular:** com user agent de celular, o embed do Drive usa um layout
+  próprio: uma barra de ~50 px acima do vídeo 16:9 e uma linha de controles (play, tempo,
+  configurações, tela cheia) que passa ~30 px do fim do vídeo. Esse layout é dimensionado
+  pela largura, não pela altura do iframe, então uma caixa 16:9 (ou 16:9 + 3rem) cortava os
+  controles. Telas estreitas (`max-sm`) e telas de toque até a largura de tablet
+  (`max-lg` + `pointer-coarse`) usam **16:9 + 6rem**; a sobra embaixo é preta.
+- **Tela cheia** (botão abaixo do vídeo e atalho `F`) atua na caixa do player, não no
+  iframe: (1) Fullscreen API quando o navegador oferece (desktop, Android, iPad), tentando
+  travar em paisagem no Android; (2) no iPhone, onde o Safari não tem tela cheia de
+  elementos, a caixa é fixada sobre a tela inteira com CSS (rolagem da página travada, `Esc`
+  ou o botão "Sair" fecham), e girar o celular dá o player em paisagem. Nos dois casos o
+  `<iframe>` não é recriado, então o vídeo continua de onde estava. O botão de tela cheia
+  do próprio Drive também funciona, porque o iframe tem `allowfullscreen`.
 - **`GET /api/lessons/{id}` não tem efeito colateral.** "Última aula aberta" é gravada
   pelo primeiro heartbeat (`seconds=0`), enviado quando a página abre. Assim o prefetch da
   anterior e da próxima não conta como abrir.
@@ -197,8 +210,8 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
   curso; (3) a aberta mais recente não concluída; (4) nada aberto: a primeira não
   concluída do curso mais recente. Cursos arquivados ficam de fora, a menos que sejam
   pedidos explicitamente.
-- **Atalhos:** `M` concluir/desfazer, `N` próxima, `P` anterior, `F` tela cheia
-  (`requestFullscreen` no iframe), `S` modo foco. São ignorados ao digitar, com
+- **Atalhos:** `M` concluir/desfazer, `N` próxima, `P` anterior, `F` tela cheia (ver
+  acima), `S` modo foco. São ignorados ao digitar, com
   Ctrl/Alt/Meta e dentro de diálogos. Limitação: depois de clicar no vídeo, o foco fica
   dentro do iframe do Drive e as teclas vão para o player do Google.
 - **Modo foco** (sidebar escondida) é lembrado no `localStorage`. No celular, a lista de

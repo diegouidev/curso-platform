@@ -113,3 +113,26 @@ test("continuar de onde parei no dashboard", async ({ page, seed }) => {
   await resume.getByRole("link", { name: "Continuar" }).click();
   await expect(page).toHaveURL(lessonUrl(s, "02 - Variáveis"));
 });
+
+test("F alterna a tela cheia do player e o botão faz o mesmo", async ({ page, seed }) => {
+  const s = await seed();
+  await openLesson(page, s, "01 - Introdução");
+  const box = player(page).locator("..");
+  await expect(box).toHaveAttribute("data-fullscreen", "off");
+
+  await page.keyboard.press("f");
+  // Native fullscreen when the browser grants it, the CSS fallback otherwise.
+  await expect(box).toHaveAttribute("data-fullscreen", /native|expanded/);
+  const viewport = page.viewportSize()!;
+  const rect = (await box.boundingBox())!;
+  expect(Math.round(rect.width)).toBe(viewport.width);
+  expect(Math.round(rect.height)).toBe(viewport.height);
+
+  await page.keyboard.press("f");
+  await expect(box).toHaveAttribute("data-fullscreen", "off");
+
+  await page.getByRole("button", { name: "Tela cheia" }).click();
+  await expect(box).toHaveAttribute("data-fullscreen", /native|expanded/);
+  await page.getByRole("button", { name: "Sair da tela cheia" }).click();
+  await expect(box).toHaveAttribute("data-fullscreen", "off");
+});
