@@ -268,3 +268,34 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
   sessões entram uma vez só. Importar o mesmo arquivo duas vezes não muda nada. Cursos
   ainda não importados aparecem no resumo para importar e restaurar de novo.
 - **Tema:** claro, escuro ou sistema (`next-themes`, guardado no navegador).
+
+### 15. Acabamento e testes E2E (Fase 7)
+
+- **Stack de E2E isolado** (`docker-compose.e2e.yml`, `make e2e`): projeto Compose próprio
+  (`curso-platform-e2e`), sem portas publicadas e com banco dentro do container. Roda os
+  **builds de produção** (gunicorn + `next start`) e o Playwright na imagem oficial, na mesma
+  versão do pacote `@playwright/test`. Funciona igual no WSL e no Windows (só precisa de
+  Docker), sem instalar navegadores na máquina.
+- **Drive simulado no backend real:** `config.e2e_settings` instala o app `apps.e2e`, que
+  troca o `build_service` do cliente do Drive pelo `FakeDrive` dos testes (o mesmo que
+  verifica, a cada chamada, que só endpoints de leitura com `supportsAllDrives` são usados).
+  O app também monta `POST /api/e2e/reset`, que zera os dados e opcionalmente importa o
+  curso de teste. **Fora dessas settings o app não é instalado e a rota não existe**; um
+  teste do backend garante isso.
+- **No navegador**, o embed do Drive e os previews do Docs são substituídos por uma página
+  simulada (`page.route`): não há sessão do Google no teste.
+- **Cada teste começa do zero** (reset + login pela API, que grava o cookie de refresh no
+  contexto do navegador). Os testes rodam em série, porque compartilham um banco.
+- **Tempo controlado:** a sugestão de conclusão é testada com `page.clock`, avançando 40 s
+  sem esperar 40 s de verdade. Isso revelou que os segundos já enviados e ainda sem
+  resposta do servidor ficavam fora da conta; o hook passou a somá-los.
+- **Acessibilidade:** axe-core (WCAG 2.0/2.1 A e AA) em login, dashboard, curso, player,
+  organização, configurações e busca, nos temas claro e escuro. O iframe do Drive fica de
+  fora (conteúdo de terceiros).
+- **Celular** (projeto `mobile`, Pixel 7): sem rolagem horizontal nas telas principais, e a
+  lista de aulas abre como gaveta e fecha ao escolher uma aula.
+- **Regressão da sidebar:** um teste verifica que o vídeo nunca invade a coluna da lista.
+- **Estados de erro:** página 404 e tela de erro inesperado em pt-BR, com caminho de volta.
+- **Títulos:** com a limpeza ligada, quando o nome do arquivo começa pelo nome da subpasta
+  ("01 - Welcome / 01 - Welcome - Parte 1"), o prefixo da pasta sai ("01 - Welcome - Parte 1").
+  Vale para importações e sincronizações; títulos editados à mão não mudam.
