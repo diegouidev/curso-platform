@@ -183,6 +183,7 @@ organização, configurações e backup, a versão para celular e uma varredura 
 | `make schema` | regenera o OpenAPI e o cliente TypeScript |
 | `make lock` | atualiza as versões travadas do Python |
 | `make logs` | segue os logs do Docker Compose |
+| `make prod-up` / `prod-backup` / `prod-restore` | produção na VPS ([docs/deploy.md](docs/deploy.md)) |
 | `make help` | lista todos os alvos |
 
 ## Solução de problemas
@@ -197,5 +198,6 @@ organização, configurações e backup, a versão para celular e uma varredura 
 
 ## Documentação
 
+- [docs/deploy.md](docs/deploy.md): publicação na VPS com Cloudflare Tunnel e Access.
 - [docs/architecture.md](docs/architecture.md): arquitetura e decisões de cada fase.
 - [docs/google-oauth.md](docs/google-oauth.md): passo a passo do Google Cloud Console.
