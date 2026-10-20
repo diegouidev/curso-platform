@@ -73,8 +73,15 @@ test-backend: ## Run pytest
 	cd backend && .venv/bin/pytest
 
 .PHONY: test-frontend
-test-frontend: ## Type-check the frontend (E2E tests arrive in phase 7)
+test-frontend: ## Type-check the frontend
 	$(PNPM) typecheck
+
+E2E := docker compose -f docker-compose.e2e.yml
+
+.PHONY: e2e
+e2e: ## Playwright E2E in Docker (fake Google Drive, throwaway database; report in e2e/playwright-report)
+	$(E2E) up --build --exit-code-from playwright; \
+	  status=$$?; $(E2E) down --remove-orphans; exit $$status
 
 .PHONY: lint
 lint: ## Lint and check formatting (no changes)

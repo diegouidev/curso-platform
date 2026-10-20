@@ -1,0 +1,60 @@
+# Playwright E2E stack: `make e2e`.
+#
+# Separate project name, no published ports and a throwaway database: it never touches the
+# development containers or your data. The backend runs with config.e2e_settings, which
+# swaps Google Drive for an in-memory fake (backend/apps/e2e).
+name: curso-platform-e2e
+
+services:
+  e2e-backend:
+    build: ./backend
+    environment:
+      DJANGO_SETTINGS_MODULE: config.e2e_settings
+      DJANGO_SECRET_KEY: e2e-only-not-a-secret
+      # Fixed throwaway Fernet key (the E2E database lives inside the container).
+      FIELD_ENCRYPTION_KEY: ZTJlLW9ubHktZmVybmV0LWtleS1ub3QtYS1zZWNyZXQ=
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: e2e-backend,localhost
+      DATA_DIR: /tmp/e2e-data
+      FRONTEND_URL: http://e2e-frontend:3000
+      AUTH_COOKIE_SECURE: "false"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py e2e_seed &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 8"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  e2e-frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://e2e-backend:8000
+    depends_on:
+      e2e-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.64.0-noble
+    working_dir: /e2e
+    environment:
+      BASE_URL: http://e2e-frontend:3000
+      CI: "1"
+    volumes:
+      - ./e2e:/e2e
+      - e2e_node_modules:/e2e/node_modules
+    command: sh -c "npm ci --no-audit --no-fund --loglevel=error && npx playwright test"
+    depends_on:
+      e2e-frontend:
+        condition: service_healthy
+
+volumes:
+  e2e_node_modules:

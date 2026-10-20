@@ -21,3 +21,7 @@ if settings.DEBUG:
 
 if settings.ADMIN_ENABLED:
     urlpatterns.append(path("admin/", admin.site.urls))
+
+# Only in the Playwright stack (config.e2e_settings); production never installs apps.e2e.
+if "apps.e2e" in settings.INSTALLED_APPS:
+    urlpatterns.append(path("api/e2e/", include("apps.e2e.urls")))
