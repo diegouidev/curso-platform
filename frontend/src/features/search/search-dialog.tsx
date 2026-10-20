@@ -87,12 +87,13 @@ export function SearchButton() {
     <Button
       variant="outline"
       onClick={open}
-      aria-label="Buscar (Ctrl+K)"
+      aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
       className="w-9 justify-start gap-2 px-2.5 text-muted-foreground sm:w-56"
     >
-      <Search />
-      <span className="hidden flex-1 text-left sm:inline">Buscar…</span>
-      <span className="hidden items-center gap-0.5 sm:flex">
+      <Search aria-hidden />
+      {/* Visible on larger screens, screen-reader only on phones: the name always matches. */}
+      <span className="sr-only sm:not-sr-only sm:flex-1 sm:text-left">Buscar…</span>
+      <span className="hidden items-center gap-0.5 sm:flex" aria-hidden>
         <Kbd>{mac ? "⌘" : "Ctrl"}</Kbd>
         <Kbd>K</Kbd>
       </span>
@@ -138,16 +139,19 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
         onValueChange={setQuery}
         placeholder="Buscar cursos, aulas e anotações…"
       />
-      <CommandList>
-        <SearchState
-          query={query.trim()}
-          enabled={enabled}
-          loading={results.isFetching && !data}
-          error={results.isError}
-          empty={!!data && total === 0}
-        />
-        {data && total > 0 && <Results data={data} onSelect={go} fetching={results.isFetching} />}
-      </CommandList>
+      {/* Status lives outside the listbox: a listbox may only contain options and groups. */}
+      <SearchState
+        query={query.trim()}
+        enabled={enabled}
+        loading={results.isFetching && !data}
+        error={results.isError}
+        empty={!!data && total === 0}
+      />
+      {data && total > 0 && (
+        <CommandList aria-busy={results.isFetching}>
+          <Results data={data} onSelect={go} />
+        </CommandList>
+      )}
       <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Kbd>↑</Kbd>
@@ -201,17 +205,9 @@ function SearchState({
   );
 }
 
-function Results({
-  data,
-  onSelect,
-  fetching,
-}: {
-  data: SearchResults;
-  onSelect: (href: string) => void;
-  fetching: boolean;
-}) {
+function Results({ data, onSelect }: { data: SearchResults; onSelect: (href: string) => void }) {
   return (
-    <div aria-busy={fetching}>
+    <>
       {data.courses.length > 0 && (
         <CommandGroup heading="Cursos">
           {data.courses.map((course) => (
@@ -284,7 +280,7 @@ function Results({
           </CommandGroup>
         </>
       )}
-    </div>
+    </>
   );
 }
 
