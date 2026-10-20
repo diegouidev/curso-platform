@@ -48,7 +48,9 @@ function ModuleItem({ courseId, module }: { courseId: number; module: Module }) 
           </span>
           <span className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
             <span className="tabular-nums">
-              {progress.lessons_completed}/{progress.lessons_total} aulas
+              {progress.lessons_total || !module.attachments.length
+                ? `${progress.lessons_completed}/${progress.lessons_total} aulas`
+                : plural(module.attachments.length, "material", "materiais")}
             </span>
             {progress.has_durations && (
               <span>{formatDuration(progress.duration_total_seconds)}</span>
@@ -62,7 +64,7 @@ function ModuleItem({ courseId, module }: { courseId: number; module: Module }) 
         </div>
       </AccordionTrigger>
       <AccordionContent className="pb-2">
-        <ul className="grid">
+        <ul className="grid grid-cols-1">
           {lessons.map((lesson) => (
             <LessonRow key={lesson.id} courseId={courseId} lesson={lesson} />
           ))}
