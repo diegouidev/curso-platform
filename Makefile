@@ -97,7 +97,8 @@ fmt: ## Auto-fix lint and formatting
 
 # --- Docker ----------------------------------------------------------------------
 .PHONY: up
-up: ## Build and start with Docker Compose
+up: ## Build and start with Docker Compose (refuses while a course import is running)
+	$(call imports_idle,docker compose)
 	docker compose up -d --build
 
 .PHONY: down
@@ -111,3 +112,37 @@ logs: ## Follow Docker Compose logs
 .PHONY: docker-createsuperuser
 docker-createsuperuser: ## Create the login user inside the backend container
 	docker compose exec backend python manage.py createsuperuser
+
+# Restarting the backend kills a running import thread: check first (only if it's up).
+define imports_idle
+	@if [ -n "$$($(1) ps -q --status running backend 2>/dev/null)" ]; then \
+	  $(1) exec -T backend python manage.py imports_idle; fi
+endef
+
+# --- Production (VPS + Cloudflare Tunnel; see docs/deploy.md) ----------------------
+PROD := docker compose -f docker-compose.prod.yml
+
+.PHONY: prod-up
+prod-up: ## VPS: build and (re)start production (refuses while a course import is running)
+	$(call imports_idle,$(PROD))
+	$(PROD) up -d --build --wait
+
+.PHONY: prod-down
+prod-down: ## VPS: stop production
+	$(PROD) down
+
+.PHONY: prod-logs
+prod-logs: ## VPS: follow production logs
+	$(PROD) logs -f --tail=100
+
+.PHONY: prod-createsuperuser
+prod-createsuperuser: ## VPS: create the login user
+	$(PROD) exec backend python manage.py createsuperuser
+
+.PHONY: prod-backup
+prod-backup: ## VPS: snapshot of database + covers into backups/ (keeps the newest 14)
+	scripts/backup.sh docker-compose.prod.yml
+
+.PHONY: prod-restore
+prod-restore: ## VPS: restore a snapshot: make prod-restore FILE=backups/curso-platform-....tar.gz
+	scripts/restore.sh "$(FILE)" docker-compose.prod.yml

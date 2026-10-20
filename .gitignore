@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 *.pem
 client_secret*.json
 
@@ -14,7 +15,8 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Data
+# Data (backups/ holds database snapshots: never commit them)
+backups/
 backend/data/
 *.sqlite3
 backend/media/

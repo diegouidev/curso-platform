@@ -1,0 +1,55 @@
+# Production on a VPS behind Cloudflare Tunnel: `make prod-up` (see docs/deploy.md).
+#
+# Differences from docker-compose.yml (development):
+# - the backend publishes no port; the browser only talks to the frontend, which proxies /api
+# - the frontend listens on 127.0.0.1 only (Docker-published ports bypass UFW), for cloudflared
+# - restart always and rotated logs
+name: curso-platform
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      # The Next.js proxy calls the API as http://backend:8000 (Host: backend).
+      DJANGO_ALLOWED_HOSTS: backend,localhost,127.0.0.1
+    volumes:
+      - sqlite_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: always
+    logging: *logging
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:${APP_PORT:-3100}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: always
+    logging: *logging
+
+volumes:
+  sqlite_data:
+    name: curso-platform_sqlite_data
