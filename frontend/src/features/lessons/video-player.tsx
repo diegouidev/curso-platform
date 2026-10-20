@@ -38,7 +38,10 @@ export function VideoPlayer({ embedUrl, driveUrl, title, iframeRef }: Props) {
 
   return (
     <div className="grid grid-cols-1 gap-2">
-      <div className="relative aspect-video overflow-hidden rounded-xl bg-black ring-1 ring-foreground/10">
+      {/* On phones the Drive embed adds a ~48px top bar above the 16:9 video; a plain 16:9
+          box would clip the bottom of the video, where the controls are. Touch screens and
+          narrow widths get 16:9 + 3rem instead. */}
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-black ring-1 ring-foreground/10 max-sm:aspect-auto max-sm:pt-[calc(56.25%+3rem)] pointer-coarse:aspect-auto pointer-coarse:pt-[calc(56.25%+3rem)]">
         {!loaded && (
           <div
             className="absolute inset-0 grid place-items-center text-sm text-white/70"
