@@ -17,8 +17,17 @@ import {
 
 import { ImportCourseForm } from "./import-course-form";
 
-export function ImportCourseDialog() {
-  const [open, setOpen] = useState(false);
+type Props = {
+  /** Controlled mode: the parent opens it from its own buttons (see the dashboard). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+export function ImportCourseDialog({ open: controlledOpen, onOpenChange }: Props) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const router = useRouter();
 
   const onImported = useCallback(
@@ -27,16 +36,18 @@ export function ImportCourseDialog() {
       setOpen(false);
       router.push(`/courses/${courseId}`);
     },
-    [router],
+    [router, setOpen],
   );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="size-4" /> Importar curso
-        </Button>
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="size-4" /> Importar curso
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Importar curso do Google Drive</DialogTitle>

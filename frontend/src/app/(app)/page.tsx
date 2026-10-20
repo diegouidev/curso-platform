@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, FolderOpen } from "lucide-react";
+import { AlertTriangle, FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,14 @@ export default function DashboardPage() {
   const active = courses.data?.filter((course) => !course.is_archived) ?? [];
   const archived = courses.data?.filter((course) => course.is_archived) ?? [];
   const canImport = google.data?.connected && !google.data.needs_reconnect;
+  // One dialog for both buttons, mounted outside the empty state: the first import makes the
+  // empty state disappear, and the dialog must survive that to open the new course.
+  const [importOpen, setImportOpen] = useState(false);
+  const importButton = (
+    <Button onClick={() => setImportOpen(true)}>
+      <Plus className="size-4" /> Importar curso
+    </Button>
+  );
 
   return (
     <div className="grid grid-cols-1 gap-8">
@@ -29,7 +38,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Olá, {user?.username}</h1>
           <p className="text-muted-foreground">Seus cursos e o quanto já avançou em cada um.</p>
         </div>
-        {canImport && !!courses.data?.length && <ImportCourseDialog />}
+        {canImport && !!courses.data?.length && importButton}
       </header>
 
       {courses.isPending ? (
@@ -57,7 +66,7 @@ export default function DashboardPage() {
                 : "Conecte sua conta Google e importe a pasta de um curso para começar."}
             </p>
             {canImport ? (
-              <ImportCourseDialog />
+              importButton
             ) : (
               <Button asChild>
                 <Link href="/setup">Configurar agora</Link>
@@ -93,6 +102,7 @@ export default function DashboardPage() {
           )}
         </>
       )}
+      {canImport && <ImportCourseDialog open={importOpen} onOpenChange={setImportOpen} />}
     </div>
   );
 }
