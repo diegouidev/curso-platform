@@ -43,12 +43,21 @@ def _is_native_doc(mime_type: str) -> bool:
     return mime_type.startswith("application/vnd.google-apps.")
 
 
+def _repeats(title: str, folder: str) -> bool:
+    """`title` starts with the whole `folder` name ("01 - Welcome - Parte 1" / "01 - Welcome")."""
+    t, f = title.casefold(), folder.casefold()
+    return t.startswith(f) and (len(t) == len(f) or not t[len(f)].isalnum())
+
+
 def drive_file_title(name: str, mime_type: str, path: list[str], *, clean: bool) -> str:
     """Title derived from the Drive: nested folders prefix it ("Parte 1 / Aula 3")."""
     title = make_title(name, is_file=not _is_native_doc(mime_type), clean=clean)
     if not path:
         return title
     folders = [make_title(part, is_file=False, clean=clean) for part in path]
+    if clean and _repeats(title, folders[-1]):
+        # "01 - Welcome / 01 - Welcome - Parte 1" reads better as "01 - Welcome - Parte 1".
+        folders.pop()
     return PATH_SEPARATOR.join([*folders, title])
 
 
