@@ -40,6 +40,7 @@ export function useTimeOnPage({
     if (!enabled) return;
 
     let serverSeconds = latest.current.initialSeconds;
+    let inFlightSeconds = 0; // sent, not yet confirmed: still counts towards the threshold
     let unsentMs = 0;
     let visibleSince: number | null = document.visibilityState === "visible" ? Date.now() : null;
     let thresholdFired = false;
@@ -51,15 +52,20 @@ export function useTimeOnPage({
       visibleSince = now;
     };
 
-    const report = (seconds: number, keepalive = false) =>
-      sendHeartbeat(queryClient, lessonId, seconds, { keepalive })
+    const report = (seconds: number, keepalive = false) => {
+      inFlightSeconds += seconds;
+      return sendHeartbeat(queryClient, lessonId, seconds, { keepalive })
         .then((progress) => {
-          serverSeconds = progress.time_on_page_seconds;
+          serverSeconds = Math.max(serverSeconds, progress.time_on_page_seconds);
         })
         .catch(() => {
           // Keep the time for the next flush (network blip). Not retried after unmount.
           unsentMs += seconds * 1000;
+        })
+        .finally(() => {
+          inFlightSeconds -= seconds;
         });
+    };
 
     const flush = (keepalive = false) => {
       collect();
@@ -73,7 +79,7 @@ export function useTimeOnPage({
       collect();
       const { thresholdSeconds: threshold } = latest.current;
       if (thresholdFired || threshold == null) return;
-      if (serverSeconds + unsentMs / 1000 >= threshold) {
+      if (serverSeconds + inFlightSeconds + unsentMs / 1000 >= threshold) {
         thresholdFired = true;
         latest.current.onThreshold();
       }
