@@ -46,10 +46,16 @@ test("reordena módulos pelo teclado e restaura a ordem do Drive", async ({ page
     );
   expect(await names()).toEqual(["Geral", "Módulo 1 - Fundamentos", "Módulo 2 - Prática"]);
 
+  // Each key waits for dnd-kit's accessible state, so a slow machine can't drop too early.
   await handles.nth(2).focus();
   await page.keyboard.press("Space");
+  await expect(handles.nth(2)).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("ArrowUp");
+  await expect(
+    page.getByText("“Módulo 2 - Prática” na posição de “Módulo 1 - Fundamentos”."),
+  ).toBeAttached();
   await page.keyboard.press("Space");
+  await expect(page.getByText(/^“Módulo 2 - Prática” solto/)).toBeAttached();
   await expect.poll(names).toEqual(["Geral", "Módulo 2 - Prática", "Módulo 1 - Fundamentos"]);
 
   // Persisted: the course page follows the new order.

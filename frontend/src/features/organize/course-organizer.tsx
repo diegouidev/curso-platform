@@ -99,7 +99,7 @@ export function CourseOrganizer({ course }: { course: CourseDetail }) {
       collisionDetection={closestCenter}
       onDragEnd={onDragEnd}
       accessibility={{
-        announcements: announcements((id) => `Módulo ${titles.get(Number(id)) ?? ""}`),
+        announcements: announcements((id) => `“${titles.get(Number(id)) ?? ""}”`),
         screenReaderInstructions: SCREEN_READER_INSTRUCTIONS,
       }}
     >
@@ -277,7 +277,7 @@ function LessonList({ courseId, module }: { courseId: number; module: Module }) 
       collisionDetection={closestCenter}
       onDragEnd={onDragEnd}
       accessibility={{
-        announcements: announcements((id) => `Aula ${titles.get(Number(id)) ?? ""}`),
+        announcements: announcements((id) => `“${titles.get(Number(id)) ?? ""}”`),
         screenReaderInstructions: SCREEN_READER_INSTRUCTIONS,
       }}
     >
