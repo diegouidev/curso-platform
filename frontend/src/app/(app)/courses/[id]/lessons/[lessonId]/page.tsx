@@ -211,6 +211,14 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
                 <ChevronRight className="size-3.5" />
               </li>
               <li className="min-w-0 truncate">{lesson.module.title}</li>
+              {lesson.section && (
+                <>
+                  <li aria-hidden>
+                    <ChevronRight className="size-3.5" />
+                  </li>
+                  <li className="min-w-0 truncate">{lesson.section}</li>
+                </>
+              )}
             </ol>
           </nav>
           <div className="flex shrink-0 items-center gap-1">
@@ -400,7 +408,7 @@ function NeighborButton({
     <Button size="lg" variant={primary ? "default" : "outline"} asChild className={classes}>
       <Link
         href={lessonPath(courseId, target.id)}
-        title={`${target.module_title} · ${target.title}`}
+        title={[target.module_title, target.section, target.title].filter(Boolean).join(" · ")}
         aria-label={`${label} aula: ${target.title}`}
       >
         {content}

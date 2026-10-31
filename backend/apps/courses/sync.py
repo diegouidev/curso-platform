@@ -61,6 +61,15 @@ def drive_file_title(name: str, mime_type: str, path: list[str], *, clean: bool)
     return PATH_SEPARATOR.join([*folders, title])
 
 
+def drive_lesson_titles(
+    name: str, mime_type: str, path: list[str], *, clean: bool
+) -> tuple[str, str]:
+    """(section, title) of a lesson: the first sub-folder below the module is its section,
+    deeper folders still prefix the title ("Parte 1" + "Extras / Aula 3")."""
+    section = make_title(path[0], is_file=False, clean=clean) if path else ""
+    return section, drive_file_title(name, mime_type, path[1:], clean=clean)
+
+
 def drive_module_title(name: str, *, is_root: bool, clean: bool) -> str:
     if is_root:
         return GENERAL_MODULE_TITLE
@@ -181,11 +190,12 @@ class _Syncer:
     def _upsert_lesson(
         self, lesson: Lesson | None, module: Module, file: ScannedFile, order: int
     ) -> Lesson:
-        title = _file_title(file, self.clean)
+        section, title = drive_lesson_titles(file.name, file.mime_type, file.path, clean=self.clean)
         fields = {
             "module": module,
             "drive_name_original": file.name,
             "drive_path": PATH_SEPARATOR.join(file.path),
+            "section": section,
             "mime_type": file.mime_type,
             "drive_modified_at": file.modified_at,
             "order": order,

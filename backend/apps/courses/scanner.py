@@ -3,7 +3,8 @@
 Mapping:
 - root folder               -> course
 - 1st-level sub-folders     -> modules (deeper folders are flattened into them, keeping
-                               the relative path so titles can be prefixed with it)
+                               the relative path: its first folder becomes the lesson's
+                               section, the rest prefixes the title)
 - files directly in root    -> the "Geral" module (keyed by the root folder id)
 """
 

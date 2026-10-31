@@ -133,10 +133,15 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
 - **Duas etapas:** (1) a *varredura* (`scanner.py`) lê o Drive inteiro para a memória,
   sem tocar no banco; (2) a *aplicação* (`sync.py`) grava tudo numa única transação.
   Se o Drive falhar no meio, nada fica pela metade.
-- **Mapeamento:** raiz → curso; subpastas de 1º nível → módulos; pastas mais profundas
-  entram no módulo pai, com o título prefixado pelo caminho (`Extras / Bônus`); vídeos
-  soltos na raiz → módulo "Geral" (identificado pelo id da própria raiz); demais arquivos
-  → anexos (da aula, quando o nome bate com o do vídeo na mesma pasta).
+- **Mapeamento:** raiz → curso; subpastas de 1º nível → módulos; a subpasta logo abaixo do
+  módulo → **seção** da aula (`Lesson.section`), que a página do curso, a lista do player e a
+  tela de organização mostram como grupo recolhível; pastas ainda mais profundas prefixam o
+  título dentro da seção (`Extras / Bônus`); vídeos soltos na raiz → módulo "Geral"
+  (identificado pelo id da própria raiz); demais arquivos → anexos (da aula, quando o nome bate
+  com o do vídeo na mesma pasta).
+- **Seções na tela:** são sequências de aulas da mesma seção, na ordem das aulas (a mesma do
+  anterior/próxima). Por isso a reordenação na tela de organização acontece dentro de cada
+  seção. A seção vem sempre do Drive e não é editável aqui.
 - **Atalhos** do Drive são seguidos (vale o id do alvo, que é o que o embed precisa).
   Ciclos são ignorados e pastas atalho sem acesso são puladas sem derrubar a importação.
 - **Vídeo** = `mimeType` `video/*`, ou `application/octet-stream` com extensão de vídeo

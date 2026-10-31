@@ -103,7 +103,7 @@ def search(query: str) -> SearchResults:
     ranked: list[tuple[int, int, Lesson]] = []
     for position, lesson in enumerate(lessons):
         title = fold(lesson.title)
-        if not _matches(f"{title} {fold(lesson.module.title)}", terms):
+        if not _matches(f"{title} {fold(lesson.section)} {fold(lesson.module.title)}", terms):
             continue
         rank = 0 if title.startswith(phrase) else 1 if phrase in title else 2
         ranked.append((rank, position, lesson))

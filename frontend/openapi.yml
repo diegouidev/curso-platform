@@ -795,6 +795,9 @@ components:
         title:
           type: string
           readOnly: true
+        section:
+          type: string
+          readOnly: true
         duration_seconds:
           type: integer
           readOnly: true
@@ -817,6 +820,7 @@ components:
       - id
       - module
       - progress
+      - section
       - title
     ContinueReasonEnum:
       enum:
@@ -1217,6 +1221,9 @@ components:
           type: integer
           readOnly: true
           nullable: true
+        section:
+          type: string
+          readOnly: true
         is_hidden:
           type: boolean
           readOnly: true
@@ -1289,6 +1296,7 @@ components:
       - position
       - previous
       - progress
+      - section
       - title
       - title_is_custom
       - total
@@ -1323,11 +1331,14 @@ components:
           type: integer
         title:
           type: string
+        section:
+          type: string
         module_title:
           type: string
       required:
       - id
       - module_title
+      - section
       - title
     LessonSummary:
       type: object
@@ -1345,6 +1356,9 @@ components:
           type: string
           readOnly: true
         drive_name_original:
+          type: string
+          readOnly: true
+        section:
           type: string
           readOnly: true
         duration_seconds:
@@ -1382,6 +1396,7 @@ components:
       - is_hidden
       - missing_in_drive
       - order
+      - section
       - title
       - title_is_custom
     LoginRequest:
@@ -1627,6 +1642,9 @@ components:
         title:
           type: string
           readOnly: true
+        section:
+          type: string
+          readOnly: true
         course_id:
           type: integer
           readOnly: true
@@ -1649,6 +1667,7 @@ components:
       - id
       - missing_in_drive
       - module_title
+      - section
       - title
     SearchNote:
       type: object

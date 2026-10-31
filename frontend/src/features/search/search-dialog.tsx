@@ -247,6 +247,7 @@ function Results({ data, onSelect }: { data: SearchResults; onSelect: (href: str
                   <span className="truncate">{lesson.title}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {lesson.course_title} · {lesson.module_title}
+                    {lesson.section && ` · ${lesson.section}`}
                   </span>
                 </span>
               </CommandItem>

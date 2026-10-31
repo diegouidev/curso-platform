@@ -24,7 +24,7 @@ def build_fake_drive() -> FakeDrive:
         10 - Revisão.mp4 (2:00)
       Módulo 2 - Prática/
         Aula 1.mp4 (3:00), Aula 2.mp4 (4:00), Aula 3 - <very long title>.mp4 (2:30)
-        Extras/Extras - Bônus.mp4 (1:00)   -> "Bônus" folder prefix is dropped
+        Extras/Extras - Bônus.mp4 (1:00)   -> section "Extras", lesson "Extras - Bônus"
     """
     drive = FakeDrive(page_size=3, email=ACCOUNT_EMAIL)
     root = drive.folder(COURSE_FOLDER_ID, "Curso E2E de Python")

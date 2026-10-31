@@ -62,6 +62,7 @@ export function ContinueCard() {
         </h2>
         <p className="truncate text-sm text-muted-foreground">
           {lesson.course.title} · {lesson.module.title}
+          {lesson.section && ` · ${lesson.section}`}
         </p>
         {reason === "resume" && watched >= 60 && (
           <p className="text-xs text-muted-foreground">

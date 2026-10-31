@@ -23,7 +23,7 @@ def build_course_tree(drive: FakeDrive) -> None:
       Módulo 1 - Básico/
         01_Introducao.mp4 (125.4 s)
         Atalho.mp4 (shortcut to a video outside the course)
-        Extras/
+        Extras/                       -> section "Extras"
           Bônus.mp4
           Mais/
             Deep.mp4
@@ -95,12 +95,9 @@ def test_import_maps_folders_to_modules_and_videos_to_lessons(auth_client, googl
 
     assert lesson_titles(general) == ["00 - Boas-vindas"]
     assert lesson_titles(mod2) == ["Aula 1", "Aula 2", "Aula 10"]
-    assert lesson_titles(mod1) == [
-        "01 Introducao",
-        "Atalho",
-        "Extras / Bônus",
-        "Extras / Mais / Deep",
-    ]
+    assert lesson_titles(mod1) == ["01 Introducao", "Atalho", "Bônus", "Mais / Deep"]
+    sections = mod1.lessons.order_by("order").values_list("section", flat=True)
+    assert list(sections) == ["", "", "Extras", "Extras"]
 
 
 def test_import_reads_durations_and_shortcut_targets(auth_client, google_connected, drive):

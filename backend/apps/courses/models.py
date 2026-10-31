@@ -60,6 +60,9 @@ class Lesson(models.Model):
     drive_name_original = models.CharField(max_length=500)
     # Folder path inside the module for nested sub-folders ("Parte 1 / Extras").
     drive_path = models.CharField(max_length=1000, blank=True)
+    # Title of the first sub-folder ("Parte 1"): groups the module's lessons into sections.
+    # Empty for lessons placed directly in the module folder.
+    section = models.CharField(max_length=255, blank=True)
     mime_type = models.CharField(max_length=128)
     duration_seconds = models.PositiveIntegerField(null=True, blank=True)
     drive_modified_at = models.DateTimeField(null=True, blank=True)

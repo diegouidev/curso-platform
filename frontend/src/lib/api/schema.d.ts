@@ -494,6 +494,7 @@ export interface components {
         ContinueLesson: {
             readonly id: number;
             readonly title: string;
+            readonly section: string;
             readonly duration_seconds: number | null;
             readonly course: components["schemas"]["CourseRef"];
             readonly module: components["schemas"]["Ref"];
@@ -637,6 +638,7 @@ export interface components {
             readonly drive_name_original: string;
             readonly mime_type: string;
             readonly duration_seconds: number | null;
+            readonly section: string;
             readonly is_hidden: boolean;
             readonly missing_in_drive: boolean;
             readonly embed_url: string;
@@ -664,6 +666,7 @@ export interface components {
         LessonRef: {
             id: number;
             title: string;
+            section: string;
             module_title: string;
         };
         LessonSummary: {
@@ -672,6 +675,7 @@ export interface components {
             readonly title_is_custom: boolean;
             readonly drive_file_id: string;
             readonly drive_name_original: string;
+            readonly section: string;
             readonly duration_seconds: number | null;
             readonly order: number;
             readonly is_hidden: boolean;
@@ -776,6 +780,7 @@ export interface components {
         SearchLesson: {
             readonly id: number;
             readonly title: string;
+            readonly section: string;
             readonly course_id: number;
             readonly course_title: string;
             readonly module_title: string;

@@ -1,5 +1,15 @@
-import { CheckCircle2, Circle, CloudOff, NotebookPen, Paperclip } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Circle,
+  CloudOff,
+  NotebookPen,
+  Paperclip,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
+import { Accordion as AccordionPrimitive } from "radix-ui";
+import type { ReactNode } from "react";
 
 import {
   Accordion,
@@ -15,6 +25,7 @@ import { formatClock, formatDuration, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import type { LessonSummary, Module } from "./api";
+import { groupBySection, sectionLabel, sectionProgress, type LessonGroup } from "./sections";
 
 export function ModuleList({ courseId, modules }: { courseId: number; modules: Module[] }) {
   const visible = modules.filter((module) => !module.is_hidden);
@@ -63,27 +74,179 @@ function ModuleItem({ courseId, module }: { courseId: number; module: Module }) 
           </span>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="pb-2">
-        <ul className="grid grid-cols-1">
-          {lessons.map((lesson) => (
-            <LessonRow key={lesson.id} courseId={courseId} lesson={lesson} />
-          ))}
-        </ul>
-        {lessons.length === 0 && (
-          <p className="px-5 py-3 text-sm text-muted-foreground">Nenhuma aula neste módulo.</p>
-        )}
-        {module.attachments.length > 0 && (
-          <div className="mx-4 mt-2 grid gap-1 border-t pt-3 sm:mx-5">
-            <p className="text-xs font-medium text-muted-foreground">Materiais do módulo</p>
-            <AttachmentList attachments={module.attachments} />
-          </div>
+      {/* h-auto: the default height is fixed when the module opens, which would clip a
+          section opened afterwards. */}
+      <AccordionContent className="h-auto pb-2">
+        {lessons.some((lesson) => lesson.section) ? (
+          <SectionList courseId={courseId} module={module} lessons={lessons} />
+        ) : (
+          <>
+            <ul className="grid grid-cols-1">
+              {lessons.map((lesson) => (
+                <LessonRow key={lesson.id} courseId={courseId} lesson={lesson} />
+              ))}
+            </ul>
+            {lessons.length === 0 && (
+              <p className="px-5 py-3 text-sm text-muted-foreground">Nenhuma aula neste módulo.</p>
+            )}
+            {module.attachments.length > 0 && (
+              <div className="mx-4 mt-2 grid gap-1 border-t pt-3 sm:mx-5">
+                <p className="text-xs font-medium text-muted-foreground">Materiais do módulo</p>
+                <AttachmentList attachments={module.attachments} />
+              </div>
+            )}
+          </>
         )}
       </AccordionContent>
     </AccordionItem>
   );
 }
 
-function LessonRow({ courseId, lesson }: { courseId: number; lesson: LessonSummary }) {
+/** Lessons grouped by the Drive sub-folders below the module, each one collapsible. */
+function SectionList({
+  courseId,
+  module,
+  lessons,
+}: {
+  courseId: number;
+  module: Module;
+  lessons: LessonSummary[];
+}) {
+  const groups = groupBySection(lessons);
+  const firstOpen = groups.find((group) => {
+    const progress = sectionProgress(group.lessons);
+    return group.title && progress.completed < progress.total;
+  });
+
+  return (
+    <AccordionPrimitive.Root
+      type="multiple"
+      defaultValue={firstOpen ? [firstOpen.key] : []}
+      className="grid grid-cols-1 gap-2 px-3 pt-1 pb-2 sm:px-4"
+    >
+      {module.attachments.length > 0 && (
+        <Collapsible
+          value="materials"
+          icon={Paperclip}
+          title={`Materiais de apoio do módulo (${module.attachments.length})`}
+        >
+          <div className="border-t px-3 py-2 sm:px-4">
+            <AttachmentList attachments={module.attachments} />
+          </div>
+        </Collapsible>
+      )}
+      {groups.map((group) =>
+        group.title ? (
+          <SectionItem key={group.key} courseId={courseId} group={group} />
+        ) : (
+          <ul key={group.key} className="grid grid-cols-1 overflow-hidden rounded-lg border">
+            {group.lessons.map((lesson) => (
+              <LessonRow
+                key={lesson.id}
+                courseId={courseId}
+                lesson={lesson}
+                className="px-3 sm:px-4"
+              />
+            ))}
+          </ul>
+        ),
+      )}
+    </AccordionPrimitive.Root>
+  );
+}
+
+function SectionItem({ courseId, group }: { courseId: number; group: LessonGroup<LessonSummary> }) {
+  const progress = sectionProgress(group.lessons);
+
+  return (
+    <Collapsible
+      value={group.key}
+      label={group.number != null ? sectionLabel(group.number) : undefined}
+      title={group.title}
+      meta={
+        <>
+          {progress.done && (
+            <CheckCircle2
+              className="size-3.5 text-emerald-600 dark:text-emerald-400"
+              aria-label="Seção concluída"
+            />
+          )}
+          <span>
+            {progress.completed}/{plural(progress.total, "aula", "aulas")}
+          </span>
+          {progress.durationSeconds != null && (
+            <span>· {formatDuration(progress.durationSeconds)}</span>
+          )}
+        </>
+      }
+    >
+      <ul className="grid grid-cols-1 border-t py-1">
+        {group.lessons.map((lesson) => (
+          <LessonRow key={lesson.id} courseId={courseId} lesson={lesson} className="px-3 sm:px-4" />
+        ))}
+      </ul>
+    </Collapsible>
+  );
+}
+
+/** A bordered, collapsible block inside a module (a section or the module materials). */
+function Collapsible({
+  value,
+  label,
+  icon: Icon,
+  title,
+  meta,
+  children,
+}: {
+  value: string;
+  label?: string;
+  icon?: LucideIcon;
+  title: string;
+  meta?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <AccordionPrimitive.Item value={value} className="overflow-hidden rounded-lg border">
+      <AccordionPrimitive.Header>
+        <AccordionPrimitive.Trigger className="group flex w-full items-center gap-3 px-3 py-3 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-4">
+          <ChevronRight
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90"
+            aria-hidden
+          />
+          <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+            <span className="flex min-w-0 items-center gap-2">
+              {label && (
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase tabular-nums">
+                  {label}
+                </span>
+              )}
+              {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+              <span className="truncate font-medium">{title}</span>
+            </span>
+            {meta && (
+              <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums sm:ml-auto">
+                {meta}
+              </span>
+            )}
+          </span>
+        </AccordionPrimitive.Trigger>
+      </AccordionPrimitive.Header>
+      <AccordionPrimitive.Content className="overflow-hidden data-open:animate-accordion-down data-closed:animate-accordion-up">
+        {children}
+      </AccordionPrimitive.Content>
+    </AccordionPrimitive.Item>
+  );
+}
+
+function LessonRow({
+  courseId,
+  lesson,
+  className,
+}: {
+  courseId: number;
+  lesson: LessonSummary;
+  className?: string;
+}) {
   return (
     <li>
       <Link
@@ -91,6 +254,7 @@ function LessonRow({ courseId, lesson }: { courseId: number; lesson: LessonSumma
         className={cn(
           "group flex items-center gap-3 px-4 py-2.5 text-sm no-underline! outline-none hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-5",
           lesson.missing_in_drive && "text-muted-foreground",
+          className,
         )}
       >
         {lesson.completed ? (

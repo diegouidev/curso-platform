@@ -96,7 +96,7 @@ def test_restore_lesson_title_uses_drive_path_and_cleanup(auth_client, course):
 
     data = auth_client.patch(url, {"title": ""}, format="json").json()
 
-    assert data["title"] == "Parte 1 / Extras / Aula 3"
+    assert data["title"] == "Extras / Aula 3"  # "Parte 1" is the section
     assert data["title_is_custom"] is False
 
 

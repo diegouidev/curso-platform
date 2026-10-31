@@ -109,6 +109,7 @@ class LessonSummarySerializer(serializers.ModelSerializer):
             "title_is_custom",
             "drive_file_id",
             "drive_name_original",
+            "section",
             "duration_seconds",
             "order",
             "is_hidden",
@@ -281,6 +282,7 @@ class RefSerializer(serializers.Serializer):
 class LessonRefSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
+    section = serializers.CharField()
     module_title = serializers.CharField(source="module.title")
 
 
@@ -313,6 +315,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
             "drive_name_original",
             "mime_type",
             "duration_seconds",
+            "section",
             "is_hidden",
             "missing_in_drive",
             "embed_url",
@@ -390,7 +393,7 @@ class ContinueLessonSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ["id", "title", "duration_seconds", "course", "module", "progress"]
+        fields = ["id", "title", "section", "duration_seconds", "course", "module", "progress"]
         read_only_fields = fields
 
     @extend_schema_field(LessonProgressSerializer)
@@ -440,6 +443,7 @@ class SearchLessonSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "section",
             "course_id",
             "course_title",
             "module_title",

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CourseDetail, LessonSummary, Module } from "@/features/courses/api";
+import { groupBySection, sectionLabel } from "@/features/courses/sections";
 import { formatClock, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -258,17 +259,71 @@ function ModuleRow({
 }
 
 function LessonList({ courseId, module }: { courseId: number; module: Module }) {
-  const sensors = useListSensors();
   const reorder = useReorder(courseId);
-  const titles = new Map(module.lessons.map((l) => [l.id, l.title]));
+  const groups = groupBySection(module.lessons);
 
-  const onDragEnd = (event: DragEndEvent) => {
-    const ids = droppedOrder(module.lessons, event);
-    if (!ids) return;
+  const save = (ids: number[]) =>
     reorder.mutate(
       { kind: "lessons", parentId: module.id, ids },
       { onError: () => toast.error("Não foi possível salvar a nova ordem.") },
     );
+
+  if (!groups.some((group) => group.title)) {
+    return (
+      <SortableLessons
+        courseId={courseId}
+        lessons={module.lessons}
+        label={`Aulas de ${module.title}`}
+        onReorder={save}
+      />
+    );
+  }
+  // Lessons move inside their section; the module's whole order is saved.
+  const saveSection = (key: string, ids: number[]) =>
+    save(groups.flatMap((group) => (group.key === key ? ids : group.lessons.map((l) => l.id))));
+  return (
+    <div className="grid gap-2">
+      {groups.map((group) => (
+        <div key={group.key} className="grid">
+          {group.title && (
+            <p className="flex min-w-0 items-center gap-2 px-2 pt-1 pb-0.5 text-xs font-medium text-muted-foreground">
+              {group.number != null && (
+                <span className="shrink-0 uppercase tabular-nums">
+                  {sectionLabel(group.number)}
+                </span>
+              )}
+              <span className="truncate text-foreground">{group.title}</span>
+            </p>
+          )}
+          <SortableLessons
+            courseId={courseId}
+            lessons={group.lessons}
+            label={`Aulas de ${group.title || module.title}`}
+            onReorder={(ids) => saveSection(group.key, ids)}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SortableLessons({
+  courseId,
+  lessons,
+  label,
+  onReorder,
+}: {
+  courseId: number;
+  lessons: LessonSummary[];
+  label: string;
+  onReorder: (ids: number[]) => void;
+}) {
+  const sensors = useListSensors();
+  const titles = new Map(lessons.map((l) => [l.id, l.title]));
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const ids = droppedOrder(lessons, event);
+    if (ids) onReorder(ids);
   };
 
   return (
@@ -281,12 +336,9 @@ function LessonList({ courseId, module }: { courseId: number; module: Module }) 
         screenReaderInstructions: SCREEN_READER_INSTRUCTIONS,
       }}
     >
-      <SortableContext
-        items={module.lessons.map((l) => l.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <ol className="grid grid-cols-1" aria-label={`Aulas de ${module.title}`}>
-          {module.lessons.map((lesson) => (
+      <SortableContext items={lessons.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+        <ol className="grid grid-cols-1" aria-label={label}>
+          {lessons.map((lesson) => (
             <LessonRow key={lesson.id} courseId={courseId} lesson={lesson} />
           ))}
         </ol>

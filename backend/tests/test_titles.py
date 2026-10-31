@@ -1,6 +1,6 @@
 import pytest
 
-from apps.courses.sync import drive_file_title
+from apps.courses.sync import drive_file_title, drive_lesson_titles
 
 
 @pytest.mark.parametrize(
@@ -20,3 +20,16 @@ from apps.courses.sync import drive_file_title
 )
 def test_file_title_drops_a_folder_the_name_repeats(name, path, clean, expected):
     assert drive_file_title(name, "video/mp4", path, clean=clean) == expected
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ([], ("", "Aula 3")),
+        (["Módulo_01"], ("Módulo 01", "Aula 3")),
+        (["Parte 1", "Extras"], ("Parte 1", "Extras / Aula 3")),
+        (["Parte 1", "Aula 3"], ("Parte 1", "Aula 3")),  # a folder named like the video
+    ],
+)
+def test_first_sub_folder_becomes_the_section(path, expected):
+    assert drive_lesson_titles("Aula 3.mp4", "video/mp4", path, clean=True) == expected

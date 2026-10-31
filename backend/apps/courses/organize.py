@@ -11,7 +11,7 @@ from apps.core.exceptions import AppError
 
 from .models import Course, Lesson, Module
 from .naming import natural_key, path_key
-from .sync import PATH_SEPARATOR, drive_file_title, drive_module_title
+from .sync import PATH_SEPARATOR, drive_lesson_titles, drive_module_title
 
 
 class InvalidOrder(AppError):
@@ -25,12 +25,12 @@ def _lesson_path(lesson: Lesson) -> list[str]:
 
 
 def drive_title_of_lesson(lesson: Lesson) -> str:
-    return drive_file_title(
+    return drive_lesson_titles(
         lesson.drive_name_original,
         lesson.mime_type,
         _lesson_path(lesson),
         clean=lesson.module.course.clean_titles,
-    )
+    )[1]
 
 
 def drive_title_of_module(module: Module) -> str:

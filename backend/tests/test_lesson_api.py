@@ -102,7 +102,12 @@ def test_lesson_detail_for_the_player(auth_client, course):
         "https://docs.google.com/document/d/doc1/preview"
     ]
     assert data["previous"] is None
-    assert data["next"] == {"id": lesson("b").pk, "title": "B", "module_title": "M1"}
+    assert data["next"] == {
+        "id": lesson("b").pk,
+        "title": "B",
+        "section": "",
+        "module_title": "M1",
+    }
     assert (data["position"], data["total"]) == (1, 4)  # a, b, c, d
 
 

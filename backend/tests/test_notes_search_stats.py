@@ -103,6 +103,15 @@ def test_search_is_accent_and_case_insensitive(auth_client, course):
     assert data["lessons"][0]["module_title"] == "Módulo 1 - Fundamentos"
 
 
+def test_search_matches_the_section(auth_client, course):
+    Lesson.objects.filter(drive_file_id="b").update(section="Seção Avançada")
+
+    data = auth_client.get("/api/search", {"q": "secao avancada padroes"}).json()
+
+    assert [x["title"] for x in data["lessons"]] == ["Aula 2 - Padrões de Projeto"]
+    assert data["lessons"][0]["section"] == "Seção Avançada"
+
+
 def test_search_skips_hidden_lessons_and_modules(auth_client, course):
     titles = [x["title"] for x in auth_client.get("/api/search?q=arquitetura").json()["lessons"]]
 
