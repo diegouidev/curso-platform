@@ -18,6 +18,21 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # Daily study reminder and automatic Drive sync (manage.py scheduled_tasks), every 10 min.
+  scheduler:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - sqlite_data:/data
+    command: ["python", "manage.py", "scheduled_tasks", "--loop", "600"]
+    init: true
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
