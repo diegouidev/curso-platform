@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.courses import jobs
-from apps.courses.models import Course, ImportJob, StudyPreferences
+from apps.courses.models import Course, ImportJob, StudyPreferences, Tag
 from apps.drive.models import GoogleCredential
 
 from .drive import ACCOUNT_EMAIL, COURSE_FOLDER_ID, FAKE_DRIVE
@@ -36,7 +36,8 @@ def seed_account() -> None:
 def reset(*, with_course: bool) -> Course | None:
     """Wipes courses and study data; optionally imports the fake course right away."""
     with transaction.atomic():
-        Course.objects.all().delete()  # cascades to modules, lessons, progress, notes...
+        Course.objects.all().delete()  # cascades to modules, lessons, progress, notes, cards...
+        Tag.objects.all().delete()
         StudyPreferences.objects.all().delete()
         seed_account()
     if not with_course:

@@ -77,6 +77,10 @@ def run_job(job_id: int) -> None:
             error_message="Erro inesperado durante a importação. Veja os logs do backend.",
         )
     else:
+        # Lessons of the first successful import are not "new"; later syncs' are.
+        Course.objects.filter(pk=job.course_id, new_lessons_seen_at__isnull=True).update(
+            new_lessons_seen_at=timezone.now()
+        )
         _finish(
             job_id,
             ImportJob.Status.SUCCESS,

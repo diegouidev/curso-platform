@@ -23,3 +23,8 @@ COURSE_IMPORT_ASYNC = False
 GOOGLE_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "test-client-secret"
 DATABASES["default"]["TEST"] = {"NAME": os.path.join(os.environ["DATA_DIR"], "test.sqlite3")}
+# Reminder channels come from the developer's .env otherwise; tests enable them explicitly.
+TELEGRAM_BOT_TOKEN = ""
+TELEGRAM_CHAT_ID = ""
+EMAIL_HOST = ""
+REMINDER_EMAIL_TO = ""

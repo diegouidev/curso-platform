@@ -94,6 +94,9 @@ def test_lesson_detail_for_the_player(auth_client, course):
         "completed_at": None,
         "last_opened_at": None,
         "time_on_page_seconds": 0,
+        "starred": False,
+        "review_later": False,
+        "difficult": False,
     }
     assert [x["preview_url"] for x in data["attachments"]] == [
         "https://drive.google.com/file/d/s1/preview"
@@ -334,6 +337,12 @@ def test_preferences_defaults_and_update(auth_client):
     assert auth_client.get("/api/preferences").json() == {
         "suggest_completion": True,
         "suggest_completion_percent": 90,
+        "daily_goal_minutes": 0,
+        "weekly_goal_minutes": 0,
+        "reminder_enabled": False,
+        "reminder_time": "20:00:00",
+        "reminder_channels": [],
+        "auto_sync": True,
     }
 
     response = auth_client.patch(

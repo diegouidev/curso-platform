@@ -52,7 +52,7 @@ def lesson(file_id: str) -> Lesson:
 def test_note_is_empty_until_written(auth_client, course):
     data = auth_client.get(f"/api/lessons/{lesson('a').pk}/note").json()
 
-    assert data == {"content": "", "updated_at": None}
+    assert data == {"content": "", "updated_at": None, "cards": 0}
     assert not Note.objects.exists()
 
 

@@ -2,9 +2,22 @@ from django.core.files.uploadedfile import UploadedFile
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from . import cards, planning
 from . import progress as study
-from .models import Attachment, Course, ImportJob, Lesson, LessonProgress, Module, StudyPreferences
+from .models import (
+    Attachment,
+    Course,
+    ImportJob,
+    Lesson,
+    LessonProgress,
+    Module,
+    ReviewCard,
+    StudyPreferences,
+    Tag,
+)
 from .naming import extract_folder_id, make_title
+from .reminders import configured_channels
+from .search import fold
 
 DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/{}"
 DRIVE_FILE_VIEW_URL = "https://drive.google.com/file/d/{}/view"
@@ -99,6 +112,15 @@ class AttachmentSerializer(serializers.ModelSerializer):
 class LessonSummarySerializer(serializers.ModelSerializer):
     completed = serializers.BooleanField(read_only=True)
     has_note = serializers.BooleanField(read_only=True)
+    watched_seconds = serializers.IntegerField(
+        read_only=True, help_text="Time with the lesson page visible."
+    )
+    starred = serializers.BooleanField(read_only=True)
+    review_later = serializers.BooleanField(read_only=True)
+    difficult = serializers.BooleanField(read_only=True)
+    is_new = serializers.BooleanField(
+        read_only=True, help_text="Added by a sync after the last 'seen' and never opened."
+    )
     attachments = AttachmentSerializer(many=True, read_only=True)
 
     class Meta:
@@ -116,6 +138,11 @@ class LessonSummarySerializer(serializers.ModelSerializer):
             "missing_in_drive",
             "completed",
             "has_note",
+            "watched_seconds",
+            "starred",
+            "review_later",
+            "difficult",
+            "is_new",
             "attachments",
         ]
         read_only_fields = fields
@@ -155,11 +182,37 @@ class ModuleSerializer(serializers.ModelSerializer):
         )
 
 
+class CoursePlanSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=planning.PLAN_STATUSES)
+    target_date = serializers.DateField(allow_null=True)
+    days_left = serializers.IntegerField(
+        allow_null=True, help_text="Days until the target date, today included; <= 0 when past."
+    )
+    lessons_left = serializers.IntegerField()
+    seconds_left = serializers.IntegerField(allow_null=True)
+    required_lessons_per_day = serializers.FloatField(allow_null=True)
+    required_seconds_per_day = serializers.IntegerField(allow_null=True)
+    pace_lessons_per_day = serializers.FloatField(help_text="Completions per day, recently.")
+    pace_seconds_per_day = serializers.IntegerField(allow_null=True)
+    pace_window_days = serializers.IntegerField()
+    projected_finish = serializers.DateField(
+        allow_null=True, help_text="When the course ends at the recent pace; null with no pace."
+    )
+
+
 class CourseSerializer(serializers.ModelSerializer):
+    """Expects the with_progress() annotations. `plans` in the context (course id -> plan)
+    avoids one query per course in lists."""
+
     progress = serializers.SerializerMethodField()
+    plan = serializers.SerializerMethodField()
     latest_job = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
     drive_url = serializers.SerializerMethodField()
+    tags = serializers.SlugRelatedField(slug_field="name", many=True, read_only=True)
+    new_lessons = serializers.IntegerField(
+        read_only=True, help_text="Lessons added by syncs since the last 'seen', not opened."
+    )
 
     class Meta:
         model = Course
@@ -176,7 +229,11 @@ class CourseSerializer(serializers.ModelSerializer):
             "clean_titles",
             "last_imported_at",
             "created_at",
+            "tags",
+            "target_date",
+            "new_lessons",
             "progress",
+            "plan",
             "latest_job",
         ]
         read_only_fields = fields
@@ -190,6 +247,12 @@ class CourseSerializer(serializers.ModelSerializer):
             duration_completed=obj.duration_completed,
             with_duration=obj.lessons_with_duration,
         )
+
+    @extend_schema_field(CoursePlanSerializer)
+    def get_plan(self, obj: Course) -> dict:
+        plans = self.context.get("plans")
+        plan = plans.get(obj.pk) if plans else None
+        return CoursePlanSerializer(plan or planning.plans_for([obj])[obj.pk]).data
 
     @extend_schema_field(ImportJobSerializer(allow_null=True))
     def get_latest_job(self, obj: Course) -> dict | None:
@@ -216,6 +279,35 @@ class CourseDetailSerializer(CourseSerializer):
         read_only_fields = fields
 
 
+MAX_TAGS_PER_COURSE = 12
+
+
+def clean_tag_names(names: list[str]) -> list[str]:
+    """Trimmed, single-spaced and without repeats (ignoring case and accents)."""
+    result: list[str] = []
+    seen: set[str] = set()
+    for name in names:
+        name = " ".join(name.split())
+        key = fold(name)
+        if name and key not in seen:
+            seen.add(key)
+            result.append(name)
+    return result
+
+
+def set_course_tags(course: Course, names: list[str]) -> None:
+    """Reuses existing tags (same name ignoring case/accents) and drops unused ones."""
+    existing = {fold(tag.name): tag for tag in Tag.objects.all()}
+    tags = []
+    for name in clean_tag_names(names):
+        tag = existing.get(fold(name))
+        if tag is None:
+            tag = existing[fold(name)] = Tag.objects.create(name=name)
+        tags.append(tag)
+    course.tags.set(tags)
+    Tag.objects.filter(courses__isnull=True).delete()
+
+
 class CourseUpdateSerializer(serializers.ModelSerializer):
     title = serializers.CharField(
         required=False,
@@ -223,12 +315,20 @@ class CourseUpdateSerializer(serializers.ModelSerializer):
         max_length=255,
         help_text="Empty string restores the title from the Drive folder name.",
     )
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=40, allow_blank=True),
+        required=False,
+        max_length=MAX_TAGS_PER_COURSE,
+        help_text="Replaces the course tags; new names create tags.",
+    )
 
     class Meta:
         model = Course
-        fields = ["title", "description", "is_archived", "clean_titles"]
+        fields = ["title", "description", "is_archived", "clean_titles", "tags", "target_date"]
 
     def update(self, instance: Course, validated_data: dict) -> Course:
+        if "tags" in validated_data:
+            set_course_tags(instance, validated_data.pop("tags"))
         if "title" in validated_data:
             title = validated_data.pop("title").strip()
             if title:
@@ -270,7 +370,51 @@ class CourseImportResponseSerializer(serializers.Serializer):
 class LessonProgressSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonProgress
-        fields = ["completed", "completed_at", "last_opened_at", "time_on_page_seconds"]
+        fields = [
+            "completed",
+            "completed_at",
+            "last_opened_at",
+            "time_on_page_seconds",
+            "starred",
+            "review_later",
+            "difficult",
+        ]
+        read_only_fields = fields
+
+
+class LessonMarksSerializer(serializers.Serializer):
+    starred = serializers.BooleanField(required=False)
+    review_later = serializers.BooleanField(required=False)
+    difficult = serializers.BooleanField(required=False)
+
+
+class MarkedLessonSerializer(serializers.ModelSerializer):
+    course_id = serializers.IntegerField(source="module.course_id", read_only=True)
+    course_title = serializers.CharField(source="module.course.title", read_only=True)
+    module_title = serializers.CharField(source="module.title", read_only=True)
+    completed = serializers.BooleanField(source="progress.completed", read_only=True)
+    starred = serializers.BooleanField(source="progress.starred", read_only=True)
+    review_later = serializers.BooleanField(source="progress.review_later", read_only=True)
+    difficult = serializers.BooleanField(source="progress.difficult", read_only=True)
+    has_note = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id",
+            "title",
+            "section",
+            "duration_seconds",
+            "missing_in_drive",
+            "course_id",
+            "course_title",
+            "module_title",
+            "completed",
+            "starred",
+            "review_later",
+            "difficult",
+            "has_note",
+        ]
         read_only_fields = fields
 
 
@@ -407,9 +551,33 @@ class ContinueSerializer(serializers.Serializer):
 
 
 class StudyPreferencesSerializer(serializers.ModelSerializer):
+    reminder_channels = serializers.SerializerMethodField(
+        help_text="Reminder channels configured on the server (environment variables)."
+    )
+
     class Meta:
         model = StudyPreferences
-        fields = ["suggest_completion", "suggest_completion_percent"]
+        fields = [
+            "suggest_completion",
+            "suggest_completion_percent",
+            "daily_goal_minutes",
+            "weekly_goal_minutes",
+            "reminder_enabled",
+            "reminder_time",
+            "reminder_channels",
+            "auto_sync",
+        ]
+
+    @extend_schema_field(
+        serializers.ListField(child=serializers.ChoiceField(choices=["telegram", "email"]))
+    )
+    def get_reminder_channels(self, obj: StudyPreferences) -> list[str]:
+        return configured_channels()
+
+
+class ReminderTestSerializer(serializers.Serializer):
+    sent = serializers.ListField(child=serializers.CharField())
+    errors = serializers.DictField(child=serializers.CharField())
 
 
 # --- Notes, search and stats (phase 5) -----------------------------------------------------
@@ -423,6 +591,9 @@ class NoteSerializer(serializers.Serializer):
     )
     updated_at = serializers.DateTimeField(
         read_only=True, allow_null=True, help_text="Null when nothing was written yet."
+    )
+    cards = serializers.IntegerField(
+        read_only=True, default=0, help_text="Review cards (P:/R: pairs) in the note."
     )
 
 
@@ -485,14 +656,120 @@ class StudyStatsSerializer(serializers.Serializer):
     week_start = serializers.DateField(help_text="Monday of the current week.")
     completed_this_week = serializers.IntegerField()
     completed_total = serializers.IntegerField()
+    study_seconds_today = serializers.IntegerField()
     study_seconds_this_week = serializers.IntegerField()
     study_seconds_total = serializers.IntegerField()
+    daily_goal_minutes = serializers.IntegerField(help_text="0 = no goal.")
+    weekly_goal_minutes = serializers.IntegerField(help_text="0 = no goal.")
     streak_days = serializers.IntegerField(
         help_text="Consecutive study days ending today (or yesterday, until today ends)."
     )
     longest_streak_days = serializers.IntegerField()
     studied_today = serializers.BooleanField()
     recent_days = StudyDaySerializer(many=True, help_text="Last 7 days, oldest first.")
+
+
+class StudyCalendarSerializer(serializers.Serializer):
+    start = serializers.DateField(help_text="A Monday, 52 weeks before the current week.")
+    end = serializers.DateField(help_text="Today.")
+    days_studied = serializers.IntegerField()
+    study_seconds = serializers.IntegerField()
+    days = StudyDaySerializer(many=True, help_text="Only days with activity, oldest first.")
+
+
+# --- Spaced repetition, notebook and recap ------------------------------------------------
+
+
+class CardLessonSerializer(serializers.ModelSerializer):
+    course_id = serializers.IntegerField(source="module.course_id", read_only=True)
+    course_title = serializers.CharField(source="module.course.title", read_only=True)
+    module_title = serializers.CharField(source="module.title", read_only=True)
+
+    class Meta:
+        model = Lesson
+        fields = ["id", "title", "course_id", "course_title", "module_title"]
+        read_only_fields = fields
+
+
+class ReviewCardSerializer(serializers.ModelSerializer):
+    lesson = CardLessonSerializer(read_only=True)
+
+    class Meta:
+        model = ReviewCard
+        fields = [
+            "id",
+            "question",
+            "answer",
+            "due_on",
+            "interval_days",
+            "repetitions",
+            "lapses",
+            "last_reviewed_at",
+            "lesson",
+        ]
+        read_only_fields = fields
+
+
+class ReviewSessionSerializer(serializers.Serializer):
+    due = serializers.IntegerField(help_text="Cards due today or earlier.")
+    new = serializers.IntegerField(help_text="Due cards never reviewed.")
+    total = serializers.IntegerField(help_text="Every card.")
+    reviewed_today = serializers.IntegerField()
+    next_due_on = serializers.DateField(
+        allow_null=True, help_text="Next day after today with cards due."
+    )
+    cards = ReviewCardSerializer(many=True, help_text="Due cards, the most overdue first.")
+
+
+class ReviewAnswerSerializer(serializers.Serializer):
+    rating = serializers.ChoiceField(choices=cards.RATINGS)
+
+
+class NotebookLessonSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    section = serializers.CharField()
+    drive_url = serializers.CharField(help_text="Drive viewer (accepts ?t=<seconds>s).")
+    completed = serializers.BooleanField()
+    content = serializers.CharField()
+    updated_at = serializers.DateTimeField()
+
+
+class NotebookModuleSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    lessons = NotebookLessonSerializer(many=True)
+
+
+class NotebookSerializer(serializers.Serializer):
+    course = RefSerializer()
+    notes = serializers.IntegerField()
+    modules = NotebookModuleSerializer(many=True, help_text="Only modules with notes.")
+
+
+class RecapLessonSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    seconds = serializers.IntegerField()
+
+
+class RecapDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    study_seconds = serializers.IntegerField()
+
+
+class CourseRecapSerializer(serializers.Serializer):
+    is_complete = serializers.BooleanField()
+    lessons_total = serializers.IntegerField()
+    lessons_completed = serializers.IntegerField()
+    study_seconds = serializers.IntegerField()
+    days_studied = serializers.IntegerField()
+    started_on = serializers.DateField(allow_null=True)
+    finished_on = serializers.DateField(allow_null=True)
+    top_lesson = RecapLessonSerializer(allow_null=True, help_text="Most time on the page.")
+    busiest_day = RecapDaySerializer(allow_null=True)
+    notes_count = serializers.IntegerField()
+    cards_count = serializers.IntegerField()
 
 
 # --- Organization and backup (phase 6) ----------------------------------------------------
@@ -535,6 +812,9 @@ class BackupProgressSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField(allow_null=True, required=False)
     last_opened_at = serializers.DateTimeField(allow_null=True, required=False)
     time_on_page_seconds = serializers.IntegerField(min_value=0, default=0)
+    starred = serializers.BooleanField(default=False)
+    review_later = serializers.BooleanField(default=False)
+    difficult = serializers.BooleanField(default=False)
 
 
 class BackupNoteSerializer(serializers.Serializer):
@@ -550,6 +830,18 @@ class BackupSessionSerializer(serializers.Serializer):
     seconds = serializers.IntegerField(min_value=0)
 
 
+class BackupCardSerializer(serializers.Serializer):
+    """The schedule of a reviewed card; the card itself comes back from the note."""
+
+    key = serializers.CharField(max_length=32)
+    ease = serializers.FloatField(min_value=cards.MIN_EASE, max_value=10)
+    interval_days = serializers.IntegerField(min_value=0, max_value=cards.MAX_INTERVAL_DAYS)
+    repetitions = serializers.IntegerField(min_value=0)
+    lapses = serializers.IntegerField(min_value=0)
+    due_on = serializers.DateField()
+    last_reviewed_at = serializers.DateTimeField()
+
+
 class BackupLessonSerializer(serializers.Serializer):
     drive_file_id = serializers.CharField(max_length=128)
     title = serializers.CharField(allow_blank=True, required=False)
@@ -557,11 +849,16 @@ class BackupLessonSerializer(serializers.Serializer):
     progress = BackupProgressSerializer(allow_null=True, required=False)
     note = BackupNoteSerializer(allow_null=True, required=False)
     sessions = BackupSessionSerializer(many=True, required=False, default=list)
+    cards = BackupCardSerializer(many=True, required=False, default=list)
 
 
 class BackupCourseSerializer(serializers.Serializer):
     drive_folder_id = serializers.CharField(max_length=128)
     title = serializers.CharField(allow_blank=True)
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=40), required=False, default=list
+    )
+    target_date = serializers.DateField(allow_null=True, required=False)
     lessons = BackupLessonSerializer(many=True)
 
 
@@ -585,6 +882,7 @@ class RestoreStatsSerializer(serializers.Serializer):
     progress_updated = serializers.IntegerField()
     notes_restored = serializers.IntegerField()
     sessions_added = serializers.IntegerField()
+    cards_restored = serializers.IntegerField()
     preferences_restored = serializers.BooleanField()
     courses_not_found = serializers.ListField(
         child=serializers.CharField(), help_text="Titles of courses not imported here yet."

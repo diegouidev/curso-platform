@@ -144,6 +144,8 @@ SPECTACULAR_SETTINGS = {
         "ImportJobStatusEnum": "apps.courses.models.ImportJob.Status",
         "ImportJobKindEnum": "apps.courses.models.ImportJob.Kind",
         "ContinueReasonEnum": "apps.courses.progress.CONTINUE_REASONS",
+        "PlanStatusEnum": "apps.courses.planning.PLAN_STATUSES",
+        "ReviewRatingEnum": "apps.courses.cards.RATINGS",
     },
 }
 
@@ -171,6 +173,21 @@ GOOGLE_REDIRECT_URI = env(
 
 # Course import/sync runs in a background thread; tests run it inline.
 COURSE_IMPORT_ASYNC = env.bool("COURSE_IMPORT_ASYNC", default=True)
+
+# --- Study reminder (manage.py scheduled_tasks) ----------------------------------
+# Telegram: a bot of your own (@BotFather) and the chat that receives the messages.
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
+TELEGRAM_CHAT_ID = env("TELEGRAM_CHAT_ID", default="")
+# E-mail: any SMTP server; the reminder goes to REMINDER_EMAIL_TO.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = 15
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "estudos@localhost")
+REMINDER_EMAIL_TO = env("REMINDER_EMAIL_TO", default="")
 
 # --- Security headers --------------------------------------------------------
 SECURE_CONTENT_TYPE_NOSNIFF = True

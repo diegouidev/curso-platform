@@ -1,6 +1,20 @@
+from datetime import time
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+
+
+class Tag(models.Model):
+    """A label for courses ("Programação", "Inglês"), used to filter the dashboard."""
+
+    name = models.CharField(max_length=40, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Course(models.Model):
@@ -19,6 +33,13 @@ class Course(models.Model):
     modules_order_is_custom = models.BooleanField(default=False)
     last_imported_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    tags = models.ManyToManyField(Tag, blank=True, related_name="courses")
+    target_date = models.DateField(
+        null=True, blank=True, help_text="The day the user wants to finish the course by."
+    )
+    # Lessons created after this (by a sync) and never opened are shown as "new". Set when
+    # the first import finishes and again when the user dismisses the "new lessons" notice.
+    new_lessons_seen_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["is_archived", "-created_at"]
@@ -114,6 +135,12 @@ class LessonProgress(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     last_opened_at = models.DateTimeField(null=True, blank=True)
     time_on_page_seconds = models.PositiveIntegerField(default=0)
+    # The user's own marks, listed together on the "Marcadas" page.
+    starred = models.BooleanField(default=False)
+    review_later = models.BooleanField(default=False)
+    difficult = models.BooleanField(default=False)
+
+    MARKS = ("starred", "review_later", "difficult")
 
     def __str__(self) -> str:
         return f"{self.lesson_id}: {'done' if self.completed else 'open'}"
@@ -161,6 +188,20 @@ class StudyPreferences(models.Model):
         default=90,
         validators=[MinValueValidator(50), MaxValueValidator(100)],
         help_text="Time on the page, as a percentage of the video duration.",
+    )
+    daily_goal_minutes = models.PositiveSmallIntegerField(
+        default=0, validators=[MaxValueValidator(720)], help_text="0 = no daily goal."
+    )
+    weekly_goal_minutes = models.PositiveSmallIntegerField(
+        default=0, validators=[MaxValueValidator(5040)], help_text="0 = no weekly goal."
+    )
+    reminder_enabled = models.BooleanField(
+        default=False, help_text="Send a reminder when nothing was studied by reminder_time."
+    )
+    reminder_time = models.TimeField(default=time(20, 0))
+    reminder_last_sent_on = models.DateField(null=True, blank=True)
+    auto_sync = models.BooleanField(
+        default=True, help_text="Sync every active course with the Drive once a day."
     )
 
     class Meta:
@@ -222,3 +263,32 @@ class ImportJob(models.Model):
             self.error_message = "A importação foi interrompida. Tente sincronizar novamente."
             self.finished_at = timezone.now()
             self.save(update_fields=["status", "error_code", "error_message", "finished_at"])
+
+
+class ReviewCard(models.Model):
+    """A question/answer pair written in a lesson note ("P: ..." / "R: ..."), reviewed with
+    spaced repetition. Cards follow the note: editing it adds, updates or removes them, and
+    the schedule survives as long as the question stays the same (matched by `key`)."""
+
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="cards")
+    key = models.CharField(max_length=32, help_text="Hash of the normalized question.")
+    question = models.TextField()
+    answer = models.TextField(blank=True)
+    position = models.PositiveIntegerField(default=0)
+    ease = models.FloatField(default=2.5)
+    interval_days = models.PositiveIntegerField(default=0)
+    repetitions = models.PositiveIntegerField(default=0)
+    lapses = models.PositiveIntegerField(default=0)
+    due_on = models.DateField(default=timezone.localdate)
+    last_reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["due_on", "lesson_id", "position", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["lesson", "key"], name="unique_card_per_lesson")
+        ]
+        indexes = [models.Index(fields=["due_on"])]
+
+    def __str__(self) -> str:
+        return self.question[:60]

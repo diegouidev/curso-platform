@@ -1,7 +1,7 @@
 import json
 from uuid import uuid4
 
-from django.db.models import Prefetch
+from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -20,9 +20,18 @@ from rest_framework.views import APIView
 
 from apps.drive.client import drive_client
 
-from . import backup, jobs, organize
+from . import backup, cards, jobs, organize, planning, reminders
 from . import progress as study
-from .models import Course, ImportJob, Lesson, Module, Note, StudyPreferences
+from .models import (
+    Course,
+    ImportJob,
+    Lesson,
+    LessonProgress,
+    Module,
+    Note,
+    ReviewCard,
+    StudyPreferences,
+)
 from .naming import make_title
 from .queries import (
     course_detail_queryset,
@@ -33,6 +42,7 @@ from .queries import (
 from .scanner import get_root_folder
 from .search import search
 from .serializers import (
+    DRIVE_FILE_VIEW_URL,
     THUMBNAIL_FORMATS,
     BackupSerializer,
     BackupUploadSerializer,
@@ -40,24 +50,33 @@ from .serializers import (
     CourseDetailSerializer,
     CourseImportResponseSerializer,
     CourseImportSerializer,
+    CourseRecapSerializer,
     CourseSerializer,
     CourseUpdateSerializer,
     HeartbeatSerializer,
     ImportJobSerializer,
     ItemUpdateSerializer,
     LessonDetailSerializer,
+    LessonMarksSerializer,
     LessonProgressSerializer,
     LessonSummarySerializer,
+    MarkedLessonSerializer,
     ModuleSerializer,
+    NotebookSerializer,
     NoteSerializer,
+    ReminderTestSerializer,
     ReorderSerializer,
     RestoreStatsSerializer,
+    ReviewAnswerSerializer,
+    ReviewCardSerializer,
+    ReviewSessionSerializer,
     SearchResultsSerializer,
+    StudyCalendarSerializer,
     StudyPreferencesSerializer,
     StudyStatsSerializer,
     ThumbnailUploadSerializer,
 )
-from .stats import study_stats
+from .stats import day_start, study_calendar, study_stats
 
 CourseExists = inline_serializer(
     "CourseExists",
@@ -72,7 +91,9 @@ CourseExists = inline_serializer(
 class CourseListView(APIView):
     @extend_schema(responses=CourseSerializer(many=True), tags=["courses"])
     def get(self, request: Request) -> Response:
-        return Response(CourseSerializer(course_list_queryset(), many=True).data)
+        courses = list(course_list_queryset())
+        context = {"plans": planning.plans_for(courses)}
+        return Response(CourseSerializer(courses, many=True, context=context).data)
 
 
 class CourseImportView(APIView):
@@ -236,23 +257,30 @@ class StudyPreferencesView(APIView):
 # --- Notes, search and stats (phase 5) -----------------------------------------------------
 
 
+def _note_data(lesson: Lesson, note: Note | None) -> dict:
+    return {
+        "content": note.content if note else "",
+        "updated_at": note.updated_at if note else None,
+        "cards": ReviewCard.objects.filter(lesson=lesson).count(),
+    }
+
+
 class LessonNoteView(APIView):
     @extend_schema(responses=NoteSerializer, tags=["notes"])
     def get(self, request: Request, pk: int) -> Response:
         lesson = get_object_or_404(Lesson, pk=pk)
         note = Note.objects.filter(lesson=lesson).first()
-        data = {"content": note.content, "updated_at": note.updated_at} if note else None
-        return Response(NoteSerializer(data or {"content": "", "updated_at": None}).data)
+        return Response(NoteSerializer(_note_data(lesson, note)).data)
 
     @extend_schema(request=NoteSerializer, responses=NoteSerializer, tags=["notes"])
     def put(self, request: Request, pk: int) -> Response:
         lesson = get_object_or_404(Lesson, pk=pk)
         payload = NoteSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        note, _ = Note.objects.update_or_create(
-            lesson=lesson, defaults={"content": payload.validated_data["content"]}
-        )
-        return Response(NoteSerializer(note).data)
+        content = payload.validated_data["content"]
+        note, _ = Note.objects.update_or_create(lesson=lesson, defaults={"content": content})
+        cards.sync_cards(lesson, content)
+        return Response(NoteSerializer(_note_data(lesson, note)).data)
 
 
 class SearchView(APIView):
@@ -270,6 +298,12 @@ class StatsView(APIView):
     @extend_schema(responses=StudyStatsSerializer, tags=["stats"])
     def get(self, request: Request) -> Response:
         return Response(StudyStatsSerializer(study_stats()).data)
+
+
+class StudyCalendarView(APIView):
+    @extend_schema(responses=StudyCalendarSerializer, tags=["stats"])
+    def get(self, request: Request) -> Response:
+        return Response(StudyCalendarSerializer(study_calendar()).data)
 
 
 # --- Organization and backup (phase 6) ----------------------------------------------------
@@ -372,7 +406,8 @@ class ExportView(APIView):
                 str,
                 enum=["json", "md"],
                 description="json: full backup (progress, notes, sessions). md: notes only.",
-            )
+            ),
+            OpenApiParameter("course", int, description="md only: notes of this course."),
         ],
         responses={200: OpenApiResponse(OpenApiTypes.BINARY, description="File download.")},
         tags=["backup"],
@@ -381,10 +416,18 @@ class ExportView(APIView):
         kind = request.query_params.get("type", "json")
         stamp = timezone.localdate().isoformat()
         if kind == "md":
+            course_id = request.query_params.get("course")
+            if course_id is not None and not course_id.isdigit():
+                return Response(
+                    {"detail": "Parâmetro course inválido.", "code": "invalid"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            course = get_object_or_404(Course, pk=course_id) if course_id else None
             response = HttpResponse(
-                backup.export_notes_markdown(), content_type="text/markdown; charset=utf-8"
+                backup.export_notes_markdown(course.pk if course else None),
+                content_type="text/markdown; charset=utf-8",
             )
-            filename = f"anotacoes-{stamp}.md"
+            filename = f"anotacoes-{f'curso-{course.pk}-' if course else ''}{stamp}.md"
         else:
             content = json.dumps(backup.export_data(), ensure_ascii=False, indent=2)
             response = HttpResponse(content, content_type="application/json; charset=utf-8")
@@ -427,3 +470,186 @@ def _invalid_backup(message: str, errors: object = None) -> Response:
     if errors:
         body["errors"] = errors
     return Response(body, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --- Planning, marks, review, reminders ----------------------------------------------------
+
+
+class CourseMarkSeenView(APIView):
+    """Dismisses the "new lessons" notice: lessons added so far stop being new."""
+
+    @extend_schema(request=None, responses=CourseDetailSerializer, tags=["courses"])
+    def post(self, request: Request, pk: int) -> Response:
+        course = get_object_or_404(Course, pk=pk)
+        course.new_lessons_seen_at = timezone.now()
+        course.save(update_fields=["new_lessons_seen_at"])
+        return _course_detail(pk)
+
+
+class CourseRecapView(APIView):
+    @extend_schema(responses=CourseRecapSerializer, tags=["courses"])
+    def get(self, request: Request, pk: int) -> Response:
+        course = get_object_or_404(Course, pk=pk)
+        return Response(CourseRecapSerializer(planning.course_recap(course)).data)
+
+
+class CourseNotebookView(APIView):
+    """Every note of the course, in course order, to read (or print) in one page."""
+
+    @extend_schema(responses=NotebookSerializer, tags=["notes"])
+    def get(self, request: Request, pk: int) -> Response:
+        course = get_object_or_404(Course, pk=pk)
+        notes = (
+            Note.objects.filter(lesson__module__course=course)
+            .exclude(content="")
+            .select_related("lesson__module", "lesson__progress")
+            .order_by("lesson__module__order", "lesson__module__id", "lesson__order", "lesson__id")
+        )
+        modules: list[dict] = []
+        for note in notes:
+            lesson = note.lesson
+            if not modules or modules[-1]["id"] != lesson.module_id:
+                modules.append(
+                    {"id": lesson.module_id, "title": lesson.module.title, "lessons": []}
+                )
+            modules[-1]["lessons"].append(
+                {
+                    "id": lesson.pk,
+                    "title": lesson.title,
+                    "section": lesson.section,
+                    "drive_url": DRIVE_FILE_VIEW_URL.format(lesson.drive_file_id),
+                    "completed": study.get_progress(lesson).completed,
+                    "content": note.content,
+                    "updated_at": note.updated_at,
+                }
+            )
+        data = {
+            "course": {"id": course.pk, "title": course.title},
+            "notes": sum(len(module["lessons"]) for module in modules),
+            "modules": modules,
+        }
+        return Response(NotebookSerializer(data).data)
+
+
+class LessonMarksView(APIView):
+    @extend_schema(
+        request=LessonMarksSerializer, responses=LessonProgressSerializer, tags=["lessons"]
+    )
+    def patch(self, request: Request, pk: int) -> Response:
+        lesson = get_object_or_404(Lesson, pk=pk)
+        payload = LessonMarksSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        progress, _ = LessonProgress.objects.get_or_create(lesson=lesson)
+        for name, value in payload.validated_data.items():
+            setattr(progress, name, value)
+        progress.save(update_fields=list(payload.validated_data) or None)
+        return Response(LessonProgressSerializer(progress).data)
+
+
+MARK_CHOICES = list(LessonProgress.MARKS)
+
+
+class MarkedLessonsView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "mark", str, enum=MARK_CHOICES, description="Only this mark (default: any)."
+            )
+        ],
+        responses=MarkedLessonSerializer(many=True),
+        tags=["lessons"],
+    )
+    def get(self, request: Request) -> Response:
+        mark = request.query_params.get("mark")
+        if mark is not None and mark not in MARK_CHOICES:
+            return Response(
+                {"detail": "Parâmetro mark inválido.", "code": "invalid"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        marks = [mark] if mark else MARK_CHOICES
+        condition = Q()
+        for name in marks:
+            condition |= Q(**{f"progress__{name}": True})
+        lessons = (
+            Lesson.objects.filter(condition)
+            .select_related("module__course", "progress")
+            .annotate(
+                has_note=Exists(Note.objects.filter(lesson=OuterRef("pk")).exclude(content=""))
+            )
+            .order_by(
+                "module__course__is_archived",
+                "-module__course__created_at",
+                "module__order",
+                "module__id",
+                "order",
+                "id",
+            )
+        )
+        return Response(MarkedLessonSerializer(lessons, many=True).data)
+
+
+class ReviewView(APIView):
+    """Today's review session: the due cards, the most overdue first."""
+
+    LIMIT = 200
+
+    @extend_schema(
+        parameters=[OpenApiParameter("course", int, description="Only cards of this course.")],
+        responses=ReviewSessionSerializer,
+        tags=["review"],
+    )
+    def get(self, request: Request) -> Response:
+        course_id = request.query_params.get("course")
+        if course_id is not None and not course_id.isdigit():
+            return Response(
+                {"detail": "Parâmetro course inválido.", "code": "invalid"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        today = timezone.localdate()
+        everything = ReviewCard.objects.all()
+        if course_id:
+            everything = everything.filter(lesson__module__course_id=int(course_id))
+        due = everything.filter(due_on__lte=today)
+        upcoming = everything.filter(due_on__gt=today).order_by("due_on").first()
+        cards_due = due.select_related("lesson__module__course").order_by(
+            "due_on", "lesson__module__course_id", "lesson_id", "position", "id"
+        )[: self.LIMIT]
+        data = {
+            "due": due.count(),
+            "new": due.filter(last_reviewed_at__isnull=True).count(),
+            "total": everything.count(),
+            "reviewed_today": everything.filter(last_reviewed_at__gte=day_start(today)).count(),
+            "next_due_on": upcoming.due_on if upcoming else None,
+            "cards": list(cards_due),
+        }
+        return Response(ReviewSessionSerializer(data).data)
+
+
+class ReviewCardView(APIView):
+    @extend_schema(request=ReviewAnswerSerializer, responses=ReviewCardSerializer, tags=["review"])
+    def post(self, request: Request, pk: int) -> Response:
+        card = get_object_or_404(ReviewCard.objects.select_related("lesson__module__course"), pk=pk)
+        payload = ReviewAnswerSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        cards.review(card, payload.validated_data["rating"])
+        return Response(ReviewCardSerializer(card).data)
+
+
+class ReminderTestView(APIView):
+    @extend_schema(
+        request=None,
+        responses={200: ReminderTestSerializer, 400: OpenApiResponse(description="No channel.")},
+        tags=["preferences"],
+    )
+    def post(self, request: Request) -> Response:
+        if not reminders.configured_channels():
+            return Response(
+                {
+                    "detail": "Nenhum canal configurado no servidor (Telegram ou e-mail).",
+                    "code": "no_reminder_channel",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        subject, text = reminders.reminder_message()
+        result = reminders.send(f"{subject} (teste)", text)
+        return Response(ReminderTestSerializer(result.__dict__).data)
