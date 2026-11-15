@@ -313,7 +313,45 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py changepa
 
 ---
 
-## 5. Backups automáticos
+## 5. Lembrete diário e sincronização automática
+
+O `make prod-up` também sobe o serviço `scheduler` (mesma imagem do backend), que a cada 10
+minutos:
+
+- **sincroniza** cada curso não arquivado com o Drive, uma vez por dia (desligue em
+  **Configurações → Sincronização automática**). Aulas novas aparecem com a etiqueta "Nova";
+- **manda o lembrete** do dia, se você ligou em **Configurações → Lembrete diário** e ainda não
+  estudou até o horário escolhido.
+
+Os canais do lembrete vêm do `.env` (nenhum segredo fica no banco). Configure um ou os dois e
+recrie os containers com `make prod-up`:
+
+**Telegram** (recomendado):
+
+1. No Telegram, fale com **@BotFather**, mande `/newbot` e copie o token.
+2. Mande qualquer mensagem para o seu bot novo.
+3. Abra `https://api.telegram.org/bot<TOKEN>/getUpdates` e copie o número de `"chat":{"id":…}`.
+4. No `.env`: `TELEGRAM_BOT_TOKEN=<token>` e `TELEGRAM_CHAT_ID=<id>`.
+
+**E-mail** (qualquer SMTP; no Gmail, crie uma "senha de app"):
+
+```
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=voce@gmail.com
+EMAIL_HOST_PASSWORD=<senha de app>
+REMINDER_EMAIL_TO=voce@gmail.com
+```
+
+Depois, em **Configurações → Lembrete diário**, use **Enviar teste**. O que o scheduler fez
+aparece em `docker compose -f docker-compose.prod.yml logs scheduler`.
+
+> O scheduler roda as sincronizações dentro dele. Como no backend, o `make prod-up` se recusa
+> a reiniciar enquanto uma delas estiver em andamento.
+
+---
+
+## 6. Backups automáticos
 
 `make prod-backup` grava em `backups/` uma cópia consistente do banco e das capas (pode rodar
 com o app no ar) e mantém as 14 mais recentes. Para rodar todo dia às 3h30:
@@ -339,7 +377,7 @@ Também existe o backup em JSON (progresso e anotações) em **Configurações �
 
 ---
 
-## 6. Atualizar para uma versão nova
+## 7. Atualizar para uma versão nova
 
 ```bash
 cd /opt/curso-platform && git pull && make prod-up
@@ -350,7 +388,7 @@ rodando** (reiniciar interromperia a importação). Espere terminar e rode de no
 
 ---
 
-## 7. Problemas comuns
+## 8. Problemas comuns
 
 | Sintoma | Causa e solução |
 | --- | --- |
@@ -360,4 +398,5 @@ rodando** (reiniciar interromperia a importação). Espere terminar e rode de no
 | Login não "segura" (volta para a tela de login) | Com `AUTH_COOKIE_SECURE=true` o cookie só funciona em HTTPS: acesse pelo domínio, não por `http://127.0.0.1:3100`. |
 | O build para com "Killed" | Falta de memória: crie o swap (passo 2.2). |
 | Importação parou no meio | O backend reiniciou durante ela. Em até 10 minutos ela é marcada como interrompida; depois clique em **Sincronizar**. |
+| O lembrete não chega | Configurações → Lembrete diário → **Enviar teste**. Se o teste falhar, revise as variáveis do passo 5; se funcionar, veja `logs scheduler`. |
 | Ver o que está acontecendo | `make prod-logs` |

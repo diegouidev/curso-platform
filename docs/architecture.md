@@ -317,3 +317,58 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
 - **Títulos:** com a limpeza ligada, quando o nome do arquivo começa pelo nome da subpasta
   ("01 - Welcome / 01 - Welcome - Parte 1"), o prefixo da pasta sai ("01 - Welcome - Parte 1").
   Vale para importações e sincronizações; títulos editados à mão não mudam.
+
+### 16. Estudo ativo, planejamento e celular (Fase 8)
+
+- **Prazo e ritmo** (`planning.py`): `Course.target_date` opcional. O ritmo é o que foi
+  concluído no curso nos últimos 14 dias (ou desde a importação, se for mais recente), em
+  aulas por dia e, quando o Drive informa durações, em segundos de vídeo por dia. A previsão
+  divide o que falta por esse ritmo com aritmética inteira (sem surpresas de ponto
+  flutuante). Status: `done`, `no_target`, `on_track` (a previsão cabe no prazo), `behind`,
+  `overdue`. Na lista de cursos, o ritmo de todos sai de uma consulta só.
+- **Metas** (`daily_goal_minutes`, `weekly_goal_minutes` em `StudyPreferences`, 0 = sem meta)
+  usam o mesmo tempo das estatísticas. No início aparecem como medidor (barra com trilho do
+  mesmo tom), não como anel: é uma razão contra um limite.
+- **Calendário** (`GET /api/stats/calendar`): 53 semanas começando numa segunda-feira, só os
+  dias com atividade. Um único tom (azul) do claro ao escuro, com a âncora invertida no tema
+  escuro; tooltip por dia e uma lista equivalente em "Ver como lista".
+- **Marcações** (`starred`, `review_later`, `difficult` em `LessonProgress`):
+  `PATCH /api/lessons/{id}/marks`, otimista como a conclusão. `GET /api/marked` lista todas.
+- **Revisão espaçada** (`cards.py`, modelo `ReviewCard`): os cartões nascem da anotação. Uma
+  linha `P:` (ou `Pergunta:`, com marcador de lista ou negrito) seguida de `R:` forma um par; a
+  resposta vai até uma linha em branco; blocos de código são ignorados. Cada `PUT` da anotação
+  sincroniza os cartões, casando pelo hash da pergunta normalizada (sem acentos/maiúsculas):
+  mudar a resposta mantém o agendamento, mudar a pergunta cria outro cartão. Agendamento SM-2
+  com quatro botões; "Errei" mantém o cartão para hoje e a tela o devolve ao fim da fila. A
+  fila da sessão é fixada ao abrir a página, para um refetch não reembaralhar.
+- **Minutagem**: `[mm:ss]` ou `[h:mm:ss]` no texto (fora de código e de links) vira link por um
+  plugin remark. O link abre o **visualizador** do Drive com `?t=<segundos>s`: o embed
+  `/preview` não respeita um tempo inicial de forma confiável, e recarregar o player levaria o
+  vídeo de volta ao início.
+- **Aulas novas**: `Course.new_lessons_seen_at` é gravado quando a primeira importação termina
+  (e pela migração, nos cursos existentes). Uma aula criada depois disso e nunca aberta é
+  "nova"; abrir a aula ou "Marcar como vistas" tira a marca.
+- **Scheduler** (`manage.py scheduled_tasks --loop 600`, serviço próprio no Compose, mesma
+  imagem e volume, `init: true` para responder ao SIGTERM): (1) lembrete, uma vez por dia
+  depois do horário, só se o dia ainda não conta como estudado (mesma regra da sequência), por
+  Telegram e/ou SMTP configurados por variável de ambiente; (2) sincronização automática: cada
+  curso ativo sem nenhum job nas últimas 23 h (manual ou automático, com sucesso ou erro, para
+  não insistir numa pasta quebrada), um de cada vez e dentro do próprio processo. Se já houver
+  um job ativo, o tick inteiro pula a sincronização; erros de conta Google interrompem a rodada.
+- **Caderno** (`GET /api/courses/{id}/notebook`): anotações na ordem do curso; a página tem
+  índice, impressão (o cabeçalho e a navegação somem com `print:hidden`) e Markdown do curso
+  (`GET /api/export?type=md&course=<id>`).
+- **Resumo** (`GET /api/courses/{id}/recap`): tempo, dias de estudo, período, aula com mais
+  tempo, dia mais intenso, anotações e cartões. Concluir a última aula mostra um aviso com
+  "Ver resumo".
+- **Tags**: modelo `Tag` (M2M com `Course`), reaproveitadas ignorando maiúsculas e acentos e
+  apagadas quando nenhum curso as usa. Os filtros do início (situação e tag) ficam no
+  `localStorage`.
+- **Backup**: o mesmo formato (versão 1) ganhou campos opcionais: marcações, tags e prazo do
+  curso, as novas preferências e o agendamento dos cartões já revisados (o cartão em si volta
+  junto com a anotação). Arquivos antigos continuam válidos.
+- **Celular**: abaixo de `sm`, a navegação vira uma barra de abas fixa embaixo (com o número
+  de cartões do dia), o conteúdo reserva espaço para ela e para a área segura
+  (`viewport-fit=cover`). Campos de texto usam 16 px no celular (o Safari do iPhone dá zoom
+  em fontes menores), botões e linhas de lista têm pelo menos 40–44 px de altura, os diálogos
+  rolam quando não cabem na tela e o card "Continuar" fica compacto.

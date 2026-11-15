@@ -32,6 +32,22 @@ tempo de estudo e anotações.
   curso; arquivar.
 - **Backup**: exportar progresso e anotações (JSON) ou só as anotações (Markdown) e importar
   de volta.
+- **Prazo e ritmo**: defina até quando quer terminar um curso e veja quanto precisa estudar por
+  dia, o seu ritmo das últimas duas semanas e quando termina nesse ritmo.
+- **Metas** diária e semanal em minutos, com medidor no início, e um **calendário do ano** com
+  os dias estudados.
+- **Lembrete diário** por Telegram ou e-mail quando chega o horário e você ainda não estudou.
+- **Marcar aulas** como favorita, "rever depois" ou difícil, e achar todas em **Marcadas**.
+- **Revisão espaçada**: uma linha `P:` seguida de `R:` na anotação vira um cartão, revisado
+  em intervalos cada vez maiores (SM-2) na tela **Revisar**.
+- **Minutagem**: `[12:30]` na anotação vira um link que abre o vídeo no Drive nesse ponto.
+- **Caderno do curso**: todas as anotações do curso numa página, para ler, imprimir/PDF ou
+  baixar em Markdown.
+- **Sincronização automática** uma vez por dia; aulas novas ganham a etiqueta "Nova" e um aviso
+  no início.
+- **Tags e filtros** de curso no início (em andamento, não iniciados, concluídos).
+- **Aula em andamento** (anel parcial na lista) e **resumo do curso** quando você conclui tudo.
+- **Celular**: barra de abas embaixo, áreas de toque maiores e campos que não dão zoom no iPhone.
 
 ---
 
@@ -127,7 +143,8 @@ do curso.
 
 ## Com Docker
 
-Sobe backend e frontend em modo de produção. O banco fica no volume `sqlite_data`.
+Sobe backend, frontend e o `scheduler` (lembrete diário e sincronização automática, a cada 10
+minutos) em modo de produção. O banco fica no volume `sqlite_data`.
 
 ```bash
 make up
@@ -170,8 +187,9 @@ docker compose up -d --force-recreate backend
 `make e2e` sobe um stack separado (projeto `curso-platform-e2e`, sem portas expostas), então
 não mexe nos seus containers nem nos seus dados. Ele cobre login, importação, player
 (concluir, desfazer, atalhos, sugestão de conclusão, continuar), anotações e busca,
-organização, configurações e backup, a versão para celular e uma varredura de acessibilidade
-(WCAG 2.1 AA, temas claro e escuro). Relatório: `e2e/playwright-report/index.html`.
+organização, configurações e backup, marcações, revisão espaçada, minutagem, caderno, prazo,
+tags e metas, a versão para celular e uma varredura de acessibilidade (WCAG 2.1 AA, temas
+claro e escuro). Relatório: `e2e/playwright-report/index.html`.
 
 ## Comandos úteis
 
@@ -193,6 +211,7 @@ organização, configurações e backup, a versão para celular e uma varredura 
 | O vídeo não carrega | Navegador logado em outra conta Google, várias contas abertas ou cookies de terceiros bloqueados (Safari). Veja "O vídeo não carrega?" abaixo do player. |
 | Aparece "Reconectar Google" | No modo de teste do Google Cloud o acesso expira a cada 7 dias. Clique em Reconectar ([detalhes](docs/google-oauth.md)). |
 | A importação ficou parada | Se o backend reiniciou no meio, a importação é marcada como interrompida em até 10 minutos. Depois clique em **Sincronizar**. |
+| O lembrete não chega | Em **Configurações → Lembrete diário**, confira os canais e use **Enviar teste**. O serviço `scheduler` precisa estar rodando (`docker compose ps`). |
 | `Port 3000/8000 is already in use` | Pare o outro processo ou o `make dev` que ficou aberto (`make down` para o Docker). |
 | Tudo muito lento no WSL | O projeto está em `/mnt/c/...`. Clone dentro do Linux (`~/`). |
 
