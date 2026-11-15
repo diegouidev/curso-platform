@@ -33,6 +33,9 @@ for (const scheme of ["light", "dark"] as const) {
         [`/courses/${s.course_id}`, "Curso E2E de Python"],
         [lessonUrl(s, "02 - Variáveis"), "02 - Variáveis"],
         [`/courses/${s.course_id}/organize`, "Organizar curso"],
+        [`/courses/${s.course_id}/notebook`, "Caderno de anotações"],
+        ["/review", "Revisar"],
+        ["/marked", "Aulas marcadas"],
         ["/settings", "Configurações"],
       ];
       for (const [url, heading] of pages) {

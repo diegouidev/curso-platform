@@ -55,7 +55,8 @@ test("estatísticas do dashboard refletem o estudo", async ({ page, seed }) => {
 
   await page.goto("/");
   const stats = page.getByRole("region", { name: "Estatísticas de estudo" });
-  await expect(stats.getByText("Aulas concluídas esta semana")).toBeVisible();
-  await expect(stats.getByText("1 aula concluída no total")).toBeVisible();
-  await expect(stats.getByText("1 dia")).toBeVisible();
+  await expect(stats.getByText("Esta semana")).toBeVisible();
+  await expect(stats.getByText("1 aula", { exact: true })).toBeVisible();
+  await expect(stats.getByText("1 aula concluída", { exact: true })).toBeVisible();
+  await expect(stats.getByText("1 dia", { exact: true })).toBeVisible();
 });

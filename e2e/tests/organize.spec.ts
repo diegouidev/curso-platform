@@ -72,7 +72,7 @@ test("edita título, descrição e capa, e arquiva o curso", async ({ page, seed
   const s = await seed();
   await page.goto(`/courses/${s.course_id}`);
   await page.getByRole("button", { name: "Mais ações do curso" }).click();
-  await page.getByRole("menuitem", { name: "Editar título, capa e descrição" }).click();
+  await page.getByRole("menuitem", { name: /Editar título, capa/ }).click();
   const dialog = page.getByRole("dialog", { name: "Editar curso" });
 
   await dialog.locator('input[type="file"]').setInputFiles({

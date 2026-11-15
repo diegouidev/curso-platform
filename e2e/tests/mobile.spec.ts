@@ -6,9 +6,19 @@ const noHorizontalScroll = () =>
 test("no celular a lista de aulas vira gaveta e nada transborda", async ({ page, seed }) => {
   const s = await seed();
 
-  for (const url of ["/", `/courses/${s.course_id}`, `/courses/${s.course_id}/organize`, "/settings"]) {
+  for (const url of [
+    "/",
+    `/courses/${s.course_id}`,
+    `/courses/${s.course_id}/organize`,
+    `/courses/${s.course_id}/notebook`,
+    "/review",
+    "/marked",
+    "/settings",
+  ]) {
     await page.goto(url);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    // Late content (stats, the study calendar) must not widen the page either.
+    await page.waitForLoadState("networkidle");
     expect(await page.evaluate(noHorizontalScroll), url).toBe(true);
   }
 
@@ -89,4 +99,21 @@ test("tela cheia sem Fullscreen API (iPhone) expande o player sem recarregar o v
   await expect(page.getByRole("button", { name: "Tela cheia" })).toBeFocused();
   await expect(video).toHaveAttribute("data-same-element", "yes");
   expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+});
+
+test("no celular a navegação fica numa barra de abas embaixo", async ({ page, seed }) => {
+  await seed();
+  await page.goto("/");
+  const tabs = page.getByRole("navigation", { name: "Principal" });
+  await expect(tabs).toBeVisible();
+  const box = (await tabs.boundingBox())!;
+  expect(box.y + box.height).toBeGreaterThanOrEqual(page.viewportSize()!.height - 1);
+
+  await tabs.getByRole("link", { name: "Revisar" }).click();
+  await expect(page).toHaveURL("/review");
+  await expect(page.getByRole("heading", { level: 1, name: "Revisar" })).toBeVisible();
+  await expect(tabs.getByRole("link", { name: "Revisar" })).toHaveAttribute("aria-current", "page");
+
+  await tabs.getByRole("link", { name: "Marcadas" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Aulas marcadas" })).toBeVisible();
 });
