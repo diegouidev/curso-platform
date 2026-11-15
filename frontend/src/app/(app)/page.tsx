@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, FolderOpen, Plus } from "lucide-react";
+import { AlertTriangle, FolderOpen, Plus, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -8,12 +8,20 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CourseCard } from "@/features/courses/course-card";
 import { useCourses } from "@/features/courses/api";
+import { CourseCard } from "@/features/courses/course-card";
+import {
+  CourseFilters,
+  applyCourseFilter,
+  useCourseFilter,
+} from "@/features/courses/course-filters";
 import { ImportCourseDialog } from "@/features/courses/import-course-dialog";
+import { NewLessonsNotice } from "@/features/courses/new-lessons";
 import { useGoogleStatus } from "@/features/google/api";
 import { ContinueCard } from "@/features/lessons/continue-card";
+import { ReviewDueBanner } from "@/features/review/review-due-banner";
 import { StatsRow } from "@/features/stats/stats-row";
+import { StudyCalendarSection } from "@/features/stats/study-calendar";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -21,22 +29,28 @@ export default function DashboardPage() {
   const google = useGoogleStatus();
   const active = courses.data?.filter((course) => !course.is_archived) ?? [];
   const archived = courses.data?.filter((course) => course.is_archived) ?? [];
+  const [filter, setFilter] = useCourseFilter();
+  const shown = applyCourseFilter(active, filter);
   const canImport = google.data?.connected && !google.data.needs_reconnect;
   // One dialog for both buttons, mounted outside the empty state: the first import makes the
   // empty state disappear, and the dialog must survive that to open the new course.
   const [importOpen, setImportOpen] = useState(false);
   const importButton = (
-    <Button onClick={() => setImportOpen(true)}>
+    <Button onClick={() => setImportOpen(true)} className="max-sm:h-10">
       <Plus className="size-4" /> Importar curso
     </Button>
   );
 
   return (
-    <div className="grid grid-cols-1 gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="grid grid-cols-1 gap-6 sm:gap-8">
+      <header className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Olá, {user?.username}</h1>
-          <p className="text-muted-foreground">Seus cursos e o quanto já avançou em cada um.</p>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Olá, {user?.username}
+          </h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Seus cursos e o quanto já avançou em cada um.
+          </p>
         </div>
         {canImport && !!courses.data?.length && importButton}
       </header>
@@ -76,17 +90,38 @@ export default function DashboardPage() {
         </Card>
       ) : (
         <>
+          <NewLessonsNotice courses={courses.data} />
           <ContinueCard />
+          <ReviewDueBanner />
           <StatsRow />
-          <section aria-labelledby="cursos" className="grid gap-4">
-            <h2 id="cursos" className="sr-only">
+          <section aria-labelledby="cursos" className="grid grid-cols-1 gap-4">
+            <h2 id="cursos" className="text-base font-semibold">
               Cursos
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {active.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
+            {active.length > 1 && (
+              <CourseFilters courses={active} filter={filter} onChange={setFilter} />
+            )}
+            {shown.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {shown.map((course) => (
+                  <CourseCard key={course.id} course={course} />
+                ))}
+              </div>
+            ) : (
+              active.length > 0 && (
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+                  <SearchX className="size-5" aria-hidden />
+                  Nenhum curso com esse filtro.
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFilter({ status: "all", tag: null })}
+                  >
+                    Mostrar todos
+                  </Button>
+                </div>
+              )
+            )}
           </section>
           {archived.length > 0 && (
             <details className="group">
@@ -100,6 +135,7 @@ export default function DashboardPage() {
               </div>
             </details>
           )}
+          <StudyCalendarSection />
         </>
       )}
       {canImport && <ImportCourseDialog open={importOpen} onOpenChange={setImportOpen} />}

@@ -36,6 +36,7 @@ import {
   type LessonRef,
 } from "@/features/lessons/api";
 import { AttachmentList } from "@/features/lessons/attachment-list";
+import { LessonMarks } from "@/features/lessons/lesson-marks";
 import { LessonOutline } from "@/features/lessons/lesson-outline";
 import { LESSON_SHORTCUTS, useLessonShortcuts } from "@/features/lessons/use-lesson-shortcuts";
 import { useTimeOnPage } from "@/features/lessons/use-time-on-page";
@@ -139,6 +140,18 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
     setCompleted.mutate(value, {
       onSuccess: () => {
         if (!value) return;
+        if (course && finishesCourse(course, lesson.id)) {
+          toast.success("Curso concluído! 🎉", {
+            id: `completed-${lesson.id}`,
+            description: "Veja o resumo de tudo o que você estudou.",
+            duration: 15_000,
+            action: {
+              label: "Ver resumo",
+              onClick: () => router.push(`/courses/${courseId}#resumo`),
+            },
+          });
+          return;
+        }
         toast.success("Aula concluída", {
           id: `completed-${lesson.id}`,
           description: lesson.next
@@ -318,6 +331,8 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
             </div>
           </div>
 
+          <LessonMarks lesson={lesson} />
+
           <ShortcutHints />
         </section>
 
@@ -341,7 +356,12 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
           </section>
         )}
 
-        <NoteEditor lessonId={lesson.id} courseId={courseId} />
+        <NoteEditor
+          lessonId={lesson.id}
+          courseId={courseId}
+          driveUrl={playable ? lesson.drive_url : undefined}
+          googleEmail={google?.email}
+        />
       </div>
 
       {!focusMode && (
@@ -368,6 +388,18 @@ function LessonPlayer({ lesson, course, courseError, focusMode, onToggleFocusMod
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+/** Whether completing `lessonId` completes the course (every counted lesson done). */
+function finishesCourse(course: CourseDetail, lessonId: number): boolean {
+  const counted = course.modules
+    .filter((module) => !module.is_hidden)
+    .flatMap((module) => module.lessons)
+    .filter((lesson) => !lesson.is_hidden && !lesson.missing_in_drive);
+  return (
+    counted.some((lesson) => lesson.id === lessonId) &&
+    counted.every((lesson) => lesson.completed || lesson.id === lessonId)
   );
 }
 

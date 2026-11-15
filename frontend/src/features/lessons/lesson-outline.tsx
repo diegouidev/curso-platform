@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  CloudOff,
-  NotebookPen,
-  PlayCircle,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, NotebookPen } from "lucide-react";
 import Link from "next/link";
 import { Accordion } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
@@ -20,6 +12,7 @@ import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { lessonPath } from "./api";
+import { LessonStatusIcon, NewBadge, StarMark } from "./lesson-status";
 
 type Props = {
   course: CourseDetail;
@@ -194,13 +187,6 @@ function LessonLinks({
     <ol className="grid">
       {lessons.map((lesson) => {
         const current = lesson.id === currentLessonId;
-        const Icon = lesson.completed
-          ? CheckCircle2
-          : current
-            ? PlayCircle
-            : lesson.missing_in_drive
-              ? CloudOff
-              : Circle;
         return (
           <li key={lesson.id}>
             <Link
@@ -214,22 +200,10 @@ function LessonLinks({
                 lesson.missing_in_drive && !current && "text-muted-foreground",
               )}
             >
-              <Icon
-                className={cn(
-                  "mt-0.5 size-4 shrink-0",
-                  lesson.completed
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : current
-                      ? "text-foreground"
-                      : "text-muted-foreground/70",
-                )}
-                aria-hidden
-              />
-              <span className="sr-only">
-                {lesson.completed ? "Concluída: " : ""}
-                {lesson.missing_in_drive ? "Fora do Drive: " : ""}
-              </span>
+              <LessonStatusIcon lesson={lesson} current={current} className="mt-0.5" />
               <span className="line-clamp-2 min-w-0 flex-1 leading-snug">{lesson.title}</span>
+              {lesson.is_new && <NewBadge className="mt-0.5" />}
+              {lesson.starred && <StarMark className="mt-0.5" />}
               {lesson.has_note && (
                 <NotebookPen
                   className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"

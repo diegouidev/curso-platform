@@ -83,6 +83,15 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Study calendar: one sequential hue (blue), light -> dark = little -> a lot. */
+  --heat-0: oklch(0.95 0 0);
+  --heat-1: #b7d3f6;
+  --heat-2: #6da7ec;
+  --heat-3: #2a78d6;
+  --heat-4: #184f95;
+  /* Goal meters: the fill and a lighter step of the same ramp as the track. */
+  --meter-fill: #2a78d6;
+  --meter-track: #cde2fb;
 }
 
 .dark {
@@ -117,6 +126,14 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Dark: the anchor flips, little activity sits close to the surface. */
+  --heat-0: oklch(0.25 0 0);
+  --heat-1: #184f95;
+  --heat-2: #256abf;
+  --heat-3: #3987e5;
+  --heat-4: #86b6ef;
+  --meter-fill: #3987e5;
+  --meter-track: #1c3a63;
 }
 
 @layer base {
@@ -125,6 +142,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* viewport-fit=cover: keep content clear of the notch in landscape. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
   html {
     @apply font-sans;

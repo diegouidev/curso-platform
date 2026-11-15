@@ -6,7 +6,9 @@ import {
   ExternalLink,
   FolderSearch,
   Loader2,
+  NotebookText,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -21,12 +23,16 @@ import {
   describeJobStats,
   isJobActive,
   useCourse,
+  useMarkSeen,
   useSyncCourse,
   type CourseDetail,
 } from "@/features/courses/api";
 import { CourseActions } from "@/features/courses/course-actions";
+import { CourseRecapCard } from "@/features/courses/course-recap";
 import { ImportJobProgress } from "@/features/courses/import-job-progress";
 import { ModuleList, summarizeModules } from "@/features/courses/module-list";
+import { PlanCard } from "@/features/courses/plan-card";
+import { TagList } from "@/features/courses/tags";
 import { GOOGLE_ERROR_MESSAGES } from "@/features/google/api";
 import { CourseContinueButton } from "@/features/lessons/continue-button";
 import { ApiError } from "@/lib/api/client";
@@ -74,9 +80,11 @@ function CourseView({ course }: { course: CourseDetail }) {
     course.modules
       .filter((module) => !module.is_hidden)
       .reduce((total, module) => total + module.lessons.filter((l) => l.is_hidden).length, 0);
+  const complete =
+    progress.lessons_total > 0 && progress.lessons_completed === progress.lessons_total;
 
   return (
-    <div className="grid grid-cols-1 gap-8">
+    <div className="grid grid-cols-1 gap-6 sm:gap-8">
       <JobFinishedToast course={course} />
       <div className="grid gap-4">
         <Link
@@ -85,32 +93,48 @@ function CourseView({ course }: { course: CourseDetail }) {
         >
           <ArrowLeft className="size-4" /> Cursos
         </Link>
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="grid min-w-0 gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-balance">{course.title}</h1>
+        <header className="grid grid-cols-1 gap-4 lg:flex lg:items-start lg:justify-between">
+          <div className="grid min-w-0 gap-1.5">
+            <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
+              {course.title}
+            </h1>
             <p className="text-sm text-muted-foreground">
               {summarizeModules(course.modules)}
               {course.last_imported_at &&
                 ` · sincronizado ${formatRelative(course.last_imported_at)}`}
             </p>
+            {course.tags.length > 0 && <TagList tags={course.tags} />}
             {course.description && (
-              <p className="mt-2 max-w-prose text-muted-foreground">{course.description}</p>
+              <p className="mt-1 max-w-prose text-muted-foreground">{course.description}</p>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {hasLessons && <CourseContinueButton courseId={course.id} />}
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
+            {hasLessons && (
+              <CourseContinueButton courseId={course.id} className="max-sm:h-11 max-sm:w-full" />
+            )}
             <SyncButton courseId={course.id} disabled={syncing} />
-            <Button asChild variant="ghost">
+            <Button asChild variant="ghost" className="max-sm:h-10">
+              <Link href={`/courses/${course.id}/notebook`}>
+                <NotebookText className="size-4" /> Caderno
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" className="max-sm:h-10">
               <a href={course.drive_url} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-4" /> Abrir no Drive
+                <ExternalLink className="size-4" />{" "}
+                <span className="max-sm:sr-only">Abrir no </span>
+                Drive
               </a>
             </Button>
-            <CourseActions course={course} />
+            <div className="ml-auto lg:ml-0">
+              <CourseActions course={course} />
+            </div>
           </div>
         </header>
       </div>
 
       {job && (syncing || job.status === "error") && <ImportJobProgress job={job} />}
+
+      {course.new_lessons > 0 && <NewLessonsNotice course={course} />}
 
       {progress.lessons_total > 0 && (
         <section
@@ -134,6 +158,12 @@ function CourseView({ course }: { course: CourseDetail }) {
             aria-label={`${progress.percent}% do curso concluído`}
           />
         </section>
+      )}
+
+      {complete ? (
+        <CourseRecapCard course={course} />
+      ) : (
+        progress.lessons_total > 0 && <PlanCard course={course} />
       )}
 
       {hasLessons ? (
@@ -177,6 +207,7 @@ function SyncButton({ courseId, disabled }: { courseId: number; disabled: boolea
     <Button
       variant="outline"
       disabled={busy}
+      className="max-sm:h-10"
       onClick={() =>
         sync.mutate(undefined, {
           onError: (error) =>
@@ -190,6 +221,42 @@ function SyncButton({ courseId, disabled }: { courseId: number; disabled: boolea
       {busy ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
       {busy ? "Sincronizando…" : "Sincronizar"}
     </Button>
+  );
+}
+
+/** Lessons added by a sync since the notice was last dismissed, and not opened yet. */
+function NewLessonsNotice({ course }: { course: CourseDetail }) {
+  const markSeen = useMarkSeen(course.id);
+  const count = course.new_lessons;
+
+  return (
+    <div
+      role="status"
+      className="flex flex-col gap-3 rounded-xl border border-sky-600/30 bg-sky-50/70 p-4 text-sm sm:flex-row sm:items-center dark:bg-sky-400/5"
+    >
+      <p className="flex flex-1 items-start gap-2">
+        <Sparkles className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+        <span>
+          <span className="font-medium">
+            {count === 1 ? "1 aula nova" : `${count} aulas novas`}
+          </span>{" "}
+          desde a última vez. Elas aparecem com a etiqueta “Nova” na lista.
+        </span>
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        className="max-sm:h-9 sm:shrink-0"
+        disabled={markSeen.isPending}
+        onClick={() =>
+          markSeen.mutate(undefined, {
+            onError: () => toast.error("Não foi possível salvar."),
+          })
+        }
+      >
+        Marcar como vistas
+      </Button>
+    </div>
   );
 }
 

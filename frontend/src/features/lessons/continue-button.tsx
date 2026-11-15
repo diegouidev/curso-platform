@@ -14,12 +14,18 @@ export const CONTINUE_LABELS: Record<NonNullable<ContinueResult["reason"]>, stri
 };
 
 /** Primary action of the course page: resume, move on, or start the course. */
-export function CourseContinueButton({ courseId }: { courseId: number }) {
+export function CourseContinueButton({
+  courseId,
+  className,
+}: {
+  courseId: number;
+  className?: string;
+}) {
   const { data } = useContinue(courseId);
   if (!data?.lesson || !data.reason) return null;
 
   return (
-    <Button asChild>
+    <Button asChild className={className}>
       <Link
         href={lessonPath(courseId, data.lesson.id)}
         aria-label={`${CONTINUE_LABELS[data.reason]}: ${data.lesson.title}`}

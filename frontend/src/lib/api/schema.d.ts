@@ -116,6 +116,56 @@ export interface paths {
         patch: operations["courses_partial_update"];
         trace?: never;
     };
+    "/api/courses/{id}/mark-seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Dismisses the "new lessons" notice: lessons added so far stop being new. */
+        post: operations["courses_mark_seen_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{id}/notebook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every note of the course, in course order, to read (or print) in one page. */
+        get: operations["courses_notebook_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{id}/recap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["courses_recap_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{id}/reset-order": {
         parameters: {
             query?: never;
@@ -366,6 +416,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{id}/marks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["lessons_marks_partial_update"];
+        trace?: never;
+    };
     "/api/lessons/{id}/note": {
         parameters: {
             query?: never;
@@ -375,6 +441,22 @@ export interface paths {
         };
         get: operations["lessons_note_retrieve"];
         put: operations["lessons_note_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/marked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["marked_list"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -414,6 +496,22 @@ export interface paths {
         patch: operations["preferences_partial_update"];
         trace?: never;
     };
+    "/api/reminders/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reminders_test_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reorder": {
         parameters: {
             query?: never;
@@ -424,6 +522,39 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["reorder_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Today's review session: the due cards, the most overdue first. */
+        get: operations["review_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/review/cards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["review_cards_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -462,6 +593,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stats/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["stats_calendar_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -486,6 +633,13 @@ export interface components {
              */
             file: string;
         };
+        CardLesson: {
+            readonly id: number;
+            readonly title: string;
+            readonly course_id: number;
+            readonly course_title: string;
+            readonly module_title: string;
+        };
         Continue: {
             /** @description Null when everything is done. */
             lesson: components["schemas"]["ContinueLesson"] | null;
@@ -507,6 +661,10 @@ export interface components {
          * @enum {string}
          */
         ContinueReasonEnum: "resume" | "next" | "start";
+        /**
+         * @description Expects the with_progress() annotations. `plans` in the context (course id -> plan)
+         *     avoids one query per course in lists.
+         */
         Course: {
             readonly id: number;
             readonly title: string;
@@ -524,9 +682,22 @@ export interface components {
             readonly last_imported_at: string | null;
             /** Format: date-time */
             readonly created_at: string;
+            readonly tags: string[];
+            /**
+             * Format: date
+             * @description The day the user wants to finish the course by.
+             */
+            readonly target_date: string | null;
+            /** @description Lessons added by syncs since the last 'seen', not opened. */
+            readonly new_lessons: number;
             readonly progress: components["schemas"]["Progress"];
+            readonly plan: components["schemas"]["CoursePlan"];
             readonly latest_job: components["schemas"]["ImportJob"] | null;
         };
+        /**
+         * @description Expects the with_progress() annotations. `plans` in the context (course id -> plan)
+         *     avoids one query per course in lists.
+         */
         CourseDetail: {
             readonly id: number;
             readonly title: string;
@@ -544,7 +715,16 @@ export interface components {
             readonly last_imported_at: string | null;
             /** Format: date-time */
             readonly created_at: string;
+            readonly tags: string[];
+            /**
+             * Format: date
+             * @description The day the user wants to finish the course by.
+             */
+            readonly target_date: string | null;
+            /** @description Lessons added by syncs since the last 'seen', not opened. */
+            readonly new_lessons: number;
             readonly progress: components["schemas"]["Progress"];
+            readonly plan: components["schemas"]["CoursePlan"];
             readonly latest_job: components["schemas"]["ImportJob"] | null;
             readonly modules: components["schemas"]["Module"][];
         };
@@ -562,6 +742,46 @@ export interface components {
         CourseImportResponse: {
             course: components["schemas"]["Course"];
             job: components["schemas"]["ImportJob"];
+        };
+        CoursePlan: {
+            status: components["schemas"]["PlanStatusEnum"];
+            /** Format: date */
+            target_date: string | null;
+            /** @description Days until the target date, today included; <= 0 when past. */
+            days_left: number | null;
+            lessons_left: number;
+            seconds_left: number | null;
+            /** Format: double */
+            required_lessons_per_day: number | null;
+            required_seconds_per_day: number | null;
+            /**
+             * Format: double
+             * @description Completions per day, recently.
+             */
+            pace_lessons_per_day: number;
+            pace_seconds_per_day: number | null;
+            pace_window_days: number;
+            /**
+             * Format: date
+             * @description When the course ends at the recent pace; null with no pace.
+             */
+            projected_finish: string | null;
+        };
+        CourseRecap: {
+            is_complete: boolean;
+            lessons_total: number;
+            lessons_completed: number;
+            study_seconds: number;
+            days_studied: number;
+            /** Format: date */
+            started_on: string | null;
+            /** Format: date */
+            finished_on: string | null;
+            /** @description Most time on the page. */
+            top_lesson: components["schemas"]["RecapLesson"] | null;
+            busiest_day: components["schemas"]["RecapDay"] | null;
+            notes_count: number;
+            cards_count: number;
         };
         CourseRef: {
             readonly id: number;
@@ -662,6 +882,9 @@ export interface components {
             /** Format: date-time */
             readonly last_opened_at: string | null;
             readonly time_on_page_seconds: number;
+            readonly starred: boolean;
+            readonly review_later: boolean;
+            readonly difficult: boolean;
         };
         LessonRef: {
             id: number;
@@ -682,11 +905,33 @@ export interface components {
             readonly missing_in_drive: boolean;
             readonly completed: boolean;
             readonly has_note: boolean;
+            /** @description Time with the lesson page visible. */
+            readonly watched_seconds: number;
+            readonly starred: boolean;
+            readonly review_later: boolean;
+            readonly difficult: boolean;
+            /** @description Added by a sync after the last 'seen' and never opened. */
+            readonly is_new: boolean;
             readonly attachments: components["schemas"]["Attachment"][];
         };
         LoginRequest: {
             username: string;
             password: string;
+        };
+        MarkedLesson: {
+            readonly id: number;
+            readonly title: string;
+            readonly section: string;
+            readonly duration_seconds: number | null;
+            readonly missing_in_drive: boolean;
+            readonly course_id: number;
+            readonly course_title: string;
+            readonly module_title: string;
+            readonly completed: boolean;
+            readonly starred: boolean;
+            readonly review_later: boolean;
+            readonly difficult: boolean;
+            readonly has_note: boolean;
         };
         Module: {
             readonly id: number;
@@ -708,10 +953,37 @@ export interface components {
              * @description Null when nothing was written yet.
              */
             readonly updated_at: string | null;
+            /**
+             * @description Review cards (P:/R: pairs) in the note.
+             * @default 0
+             */
+            readonly cards: number;
         };
         NoteRequest: {
             /** @description Markdown. */
             content: string;
+        };
+        Notebook: {
+            course: components["schemas"]["Ref"];
+            notes: number;
+            /** @description Only modules with notes. */
+            modules: components["schemas"]["NotebookModule"][];
+        };
+        NotebookLesson: {
+            id: number;
+            title: string;
+            section: string;
+            /** @description Drive viewer (accepts ?t=<seconds>s). */
+            drive_url: string;
+            completed: boolean;
+            content: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        NotebookModule: {
+            id: number;
+            title: string;
+            lessons: components["schemas"]["NotebookLesson"][];
         };
         /** @enum {unknown} */
         NullEnum: null;
@@ -722,18 +994,49 @@ export interface components {
             is_archived?: boolean;
             /** @description Tidy Drive names into titles (extension, underscores...). */
             clean_titles?: boolean;
+            /** @description Replaces the course tags; new names create tags. */
+            tags?: string[];
+            /**
+             * Format: date
+             * @description The day the user wants to finish the course by.
+             */
+            target_date?: string | null;
         };
         PatchedItemUpdateRequest: {
             /** @description Empty string restores the title derived from the Drive name. */
             title?: string;
             is_hidden?: boolean;
         };
+        PatchedLessonMarksRequest: {
+            starred?: boolean;
+            review_later?: boolean;
+            difficult?: boolean;
+        };
         PatchedStudyPreferencesRequest: {
             /** @description Offer to mark a lesson as done after enough time on the page. */
             suggest_completion?: boolean;
             /** @description Time on the page, as a percentage of the video duration. */
             suggest_completion_percent?: number;
+            /** @description 0 = no daily goal. */
+            daily_goal_minutes?: number;
+            /** @description 0 = no weekly goal. */
+            weekly_goal_minutes?: number;
+            /** @description Send a reminder when nothing was studied by reminder_time. */
+            reminder_enabled?: boolean;
+            /** Format: time */
+            reminder_time?: string;
+            /** @description Sync every active course with the Drive once a day. */
+            auto_sync?: boolean;
         };
+        /**
+         * @description * `done` - Curso concluído
+         *     * `no_target` - Sem prazo definido
+         *     * `on_track` - No ritmo para terminar no prazo
+         *     * `behind` - Abaixo do ritmo necessário
+         *     * `overdue` - Prazo vencido
+         * @enum {string}
+         */
+        PlanStatusEnum: "done" | "no_target" | "on_track" | "behind" | "overdue";
         Progress: {
             lessons_total: number;
             lessons_completed: number;
@@ -744,9 +1047,31 @@ export interface components {
             /** @description True when at least one counted lesson has a known duration. */
             has_durations: boolean;
         };
+        RecapDay: {
+            /** Format: date */
+            date: string;
+            study_seconds: number;
+        };
+        RecapLesson: {
+            id: number;
+            title: string;
+            seconds: number;
+        };
         Ref: {
             id: number;
             title: string;
+        };
+        /**
+         * @description * `telegram` - telegram
+         *     * `email` - email
+         * @enum {string}
+         */
+        ReminderChannelsEnum: "telegram" | "email";
+        ReminderTest: {
+            sent: string[];
+            errors: {
+                [key: string]: string;
+            };
         };
         /**
          * @description * `modules` - Módulos
@@ -767,9 +1092,50 @@ export interface components {
             progress_updated: number;
             notes_restored: number;
             sessions_added: number;
+            cards_restored: number;
             preferences_restored: boolean;
             /** @description Titles of courses not imported here yet. */
             courses_not_found: string[];
+        };
+        ReviewAnswerRequest: {
+            rating: components["schemas"]["ReviewRatingEnum"];
+        };
+        ReviewCard: {
+            readonly id: number;
+            readonly question: string;
+            readonly answer: string;
+            /** Format: date */
+            readonly due_on: string;
+            readonly interval_days: number;
+            readonly repetitions: number;
+            readonly lapses: number;
+            /** Format: date-time */
+            readonly last_reviewed_at: string | null;
+            readonly lesson: components["schemas"]["CardLesson"];
+        };
+        /**
+         * @description * `again` - Errei
+         *     * `hard` - Difícil
+         *     * `good` - Bom
+         *     * `easy` - Fácil
+         * @enum {string}
+         */
+        ReviewRatingEnum: "again" | "hard" | "good" | "easy";
+        ReviewSession: {
+            /** @description Cards due today or earlier. */
+            due: number;
+            /** @description Due cards never reviewed. */
+            new: number;
+            /** @description Every card. */
+            total: number;
+            reviewed_today: number;
+            /**
+             * Format: date
+             * @description Next day after today with cards due.
+             */
+            next_due_on: string | null;
+            /** @description Due cards, the most overdue first. */
+            cards: components["schemas"]["ReviewCard"][];
         };
         SearchCourse: {
             readonly id: number;
@@ -807,6 +1173,22 @@ export interface components {
             lessons: components["schemas"]["SearchLesson"][];
             notes: components["schemas"]["SearchNote"][];
         };
+        StudyCalendar: {
+            /**
+             * Format: date
+             * @description A Monday, 52 weeks before the current week.
+             */
+            start: string;
+            /**
+             * Format: date
+             * @description Today.
+             */
+            end: string;
+            days_studied: number;
+            study_seconds: number;
+            /** @description Only days with activity, oldest first. */
+            days: components["schemas"]["StudyDay"][];
+        };
         StudyDay: {
             /** Format: date */
             date: string;
@@ -818,6 +1200,18 @@ export interface components {
             suggest_completion?: boolean;
             /** @description Time on the page, as a percentage of the video duration. */
             suggest_completion_percent?: number;
+            /** @description 0 = no daily goal. */
+            daily_goal_minutes?: number;
+            /** @description 0 = no weekly goal. */
+            weekly_goal_minutes?: number;
+            /** @description Send a reminder when nothing was studied by reminder_time. */
+            reminder_enabled?: boolean;
+            /** Format: time */
+            reminder_time?: string;
+            /** @description Reminder channels configured on the server (environment variables). */
+            readonly reminder_channels: components["schemas"]["ReminderChannelsEnum"][];
+            /** @description Sync every active course with the Drive once a day. */
+            auto_sync?: boolean;
         };
         StudyStats: {
             /** Format: date */
@@ -829,8 +1223,13 @@ export interface components {
             week_start: string;
             completed_this_week: number;
             completed_total: number;
+            study_seconds_today: number;
             study_seconds_this_week: number;
             study_seconds_total: number;
+            /** @description 0 = no goal. */
+            daily_goal_minutes: number;
+            /** @description 0 = no goal. */
+            weekly_goal_minutes: number;
             /** @description Consecutive study days ending today (or yesterday, until today ends). */
             streak_days: number;
             longest_streak_days: number;
@@ -1051,6 +1450,69 @@ export interface operations {
             };
         };
     };
+    courses_mark_seen_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseDetail"];
+                };
+            };
+        };
+    };
+    courses_notebook_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notebook"];
+                };
+            };
+        };
+    };
+    courses_recap_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseRecap"];
+                };
+            };
+        };
+    };
     courses_reset_order_create: {
         parameters: {
             query?: never;
@@ -1176,6 +1638,8 @@ export interface operations {
     export_retrieve: {
         parameters: {
             query?: {
+                /** @description md only: notes of this course. */
+                course?: number;
                 /** @description json: full backup (progress, notes, sessions). md: notes only. */
                 type?: "json" | "md";
             };
@@ -1455,6 +1919,33 @@ export interface operations {
             };
         };
     };
+    lessons_marks_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLessonMarksRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLessonMarksRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLessonMarksRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+        };
+    };
     lessons_note_retrieve: {
         parameters: {
             query?: never;
@@ -1499,6 +1990,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Note"];
+                };
+            };
+        };
+    };
+    marked_list: {
+        parameters: {
+            query?: {
+                /** @description Only this mark (default: any). */
+                mark?: "difficult" | "review_later" | "starred";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkedLesson"][];
                 };
             };
         };
@@ -1574,6 +2087,32 @@ export interface operations {
             };
         };
     };
+    reminders_test_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReminderTest"];
+                };
+            };
+            /** @description No channel. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     reorder_create: {
         parameters: {
             query?: never;
@@ -1595,6 +2134,55 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    review_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Only cards of this course. */
+                course?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewSession"];
+                };
+            };
+        };
+    };
+    review_cards_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewAnswerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReviewAnswerRequest"];
+                "multipart/form-data": components["schemas"]["ReviewAnswerRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewCard"];
+                };
             };
         };
     };
@@ -1635,6 +2223,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudyStats"];
+                };
+            };
+        };
+    };
+    stats_calendar_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyCalendar"];
                 };
             };
         };

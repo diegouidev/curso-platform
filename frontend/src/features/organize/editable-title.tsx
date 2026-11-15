@@ -61,7 +61,7 @@ export function EditableTitle({ title, isCustom, onSave, noun, className }: Prop
           }}
           aria-label={`Novo título d${noun === "aula" ? "a" : "o"} ${noun}`}
           placeholder="Vazio = nome do Drive"
-          className="h-8 min-w-0 flex-1"
+          className="h-10 min-w-0 flex-1 sm:h-8"
           disabled={saving}
         />
         <Button type="submit" size="icon-sm" aria-label="Salvar título" disabled={saving}>

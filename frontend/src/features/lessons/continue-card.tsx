@@ -20,7 +20,7 @@ const HEADINGS = {
 export function ContinueCard() {
   const { data, isPending, isError } = useContinue();
 
-  if (isPending) return <Skeleton className="h-40 rounded-xl sm:h-32" />;
+  if (isPending) return <Skeleton className="h-36 rounded-xl sm:h-32" />;
   if (isError || !data.lesson || !data.reason) return null;
 
   const { lesson, reason } = data;
@@ -30,7 +30,7 @@ export function ContinueCard() {
   return (
     <section
       aria-labelledby="continuar-titulo"
-      className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:p-5"
+      className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 rounded-xl border bg-card p-3 sm:flex sm:gap-4 sm:p-5"
     >
       <Link
         href={href}
@@ -48,7 +48,7 @@ export function ContinueCard() {
         ) : (
           <BookOpen className="size-8 text-muted-foreground/60" />
         )}
-        <span className="absolute grid size-10 place-items-center rounded-full bg-background/90 shadow-sm">
+        <span className="absolute grid size-8 place-items-center rounded-full bg-background/90 shadow-sm sm:size-10">
           <Play className="size-4 translate-x-px" />
         </span>
       </Link>
@@ -57,7 +57,10 @@ export function ContinueCard() {
         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           {HEADINGS[reason]}
         </p>
-        <h2 id="continuar-titulo" className="line-clamp-2 text-lg leading-snug font-semibold">
+        <h2
+          id="continuar-titulo"
+          className="line-clamp-2 text-base leading-snug font-semibold sm:text-lg"
+        >
           {lesson.title}
         </h2>
         <p className="truncate text-sm text-muted-foreground">
@@ -71,7 +74,7 @@ export function ContinueCard() {
         )}
       </div>
 
-      <Button size="lg" asChild className="max-sm:h-11 sm:self-center">
+      <Button size="lg" asChild className="col-span-2 max-sm:h-11 sm:self-center">
         <Link href={href}>
           <Play /> {CONTINUE_LABELS[reason]}
         </Link>

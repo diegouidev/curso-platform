@@ -8,6 +8,7 @@ import {
   ListOrdered,
   Loader2,
   MoreHorizontal,
+  NotebookText,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -37,7 +38,8 @@ import { Label } from "@/components/ui/label";
 import { useCourseThumbnail } from "@/features/organize/api";
 import { ApiError } from "@/lib/api/client";
 
-import { useUpdateCourse, type CourseDetail } from "./api";
+import { useCourses, useUpdateCourse, type CourseDetail } from "./api";
+import { TagInput } from "./tags";
 
 const MAX_COVER_BYTES = 5 * 1024 * 1024;
 
@@ -64,17 +66,27 @@ export function CourseActions({ course }: { course: CourseDetail }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Mais ações do curso">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Mais ações do curso"
+            className="max-sm:size-10"
+          >
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-52">
           <DropdownMenuItem onSelect={() => setEditing(true)}>
-            <Pencil /> Editar título, capa e descrição
+            <Pencil /> Editar título, capa, tags e descrição
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/courses/${course.id}/organize`}>
               <ListOrdered /> Organizar módulos e aulas
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/courses/${course.id}/notebook`}>
+              <NotebookText /> Caderno de anotações
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -101,7 +113,12 @@ function EditCourseForm({ course, onDone }: { course: CourseDetail; onDone: () =
   const update = useUpdateCourse(course.id);
   const [title, setTitle] = useState(course.title_is_custom ? course.title : "");
   const [description, setDescription] = useState(course.description);
-  const ids = { title: useId(), description: useId(), cover: useId() };
+  const [tags, setTags] = useState(course.tags);
+  const ids = { title: useId(), description: useId(), cover: useId(), tags: useId() };
+  const { data: courses } = useCourses();
+  const knownTags = [...new Set((courses ?? []).flatMap((item) => item.tags))].sort((a, b) =>
+    a.localeCompare(b, "pt-BR"),
+  );
 
   return (
     <form
@@ -109,7 +126,7 @@ function EditCourseForm({ course, onDone }: { course: CourseDetail; onDone: () =
       onSubmit={(event) => {
         event.preventDefault();
         update.mutate(
-          { title, description },
+          { title, description, tags },
           {
             onSuccess: () => {
               toast.success("Curso atualizado.");
@@ -130,9 +147,17 @@ function EditCourseForm({ course, onDone }: { course: CourseDetail; onDone: () =
           onChange={(event) => setTitle(event.target.value)}
           placeholder={course.drive_name_original || course.title}
           aria-describedby={`${ids.title}-hint`}
+          className="h-10 sm:h-9"
         />
         <p id={`${ids.title}-hint`} className="text-xs text-muted-foreground">
           Deixe vazio para usar o nome da pasta no Drive.
+        </p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={ids.tags}>Tags</Label>
+        <TagInput value={tags} onChange={setTags} suggestions={knownTags} inputId={ids.tags} />
+        <p className="text-xs text-muted-foreground">
+          Separe com vírgula ou Enter. Servem para filtrar os cursos na página inicial.
         </p>
       </div>
       <div className="grid gap-2">
@@ -143,7 +168,7 @@ function EditCourseForm({ course, onDone }: { course: CourseDetail; onDone: () =
           onChange={(event) => setDescription(event.target.value)}
           rows={4}
           placeholder="Do que se trata, por que você está fazendo…"
-          className="w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          className="w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm dark:bg-input/30"
         />
       </div>
       <DialogFooter>

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
-import { courseKeys, type CourseDetail } from "@/features/courses/api";
+import { courseKeys, type CourseDetail, type LessonSummary } from "@/features/courses/api";
 import { statsKeys } from "@/features/stats/api";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
@@ -11,13 +11,23 @@ export type LessonRef = components["schemas"]["LessonRef"];
 export type ContinueLesson = components["schemas"]["ContinueLesson"];
 export type ContinueResult = components["schemas"]["Continue"];
 export type StudyPreferences = components["schemas"]["StudyPreferences"];
+export type MarkedLesson = components["schemas"]["MarkedLesson"];
+export type LessonMarks = Pick<LessonProgress, "starred" | "review_later" | "difficult">;
+export type MarkName = keyof LessonMarks;
 
 export const lessonKeys = {
   detail: (id: number) => ["lessons", id] as const,
   continueAll: ["continue"] as const,
   continue: (courseId?: number) => ["continue", courseId ?? "all"] as const,
   preferences: ["preferences"] as const,
+  marked: ["marked"] as const,
 };
+
+export const MARKS: { name: MarkName; label: string; plural: string }[] = [
+  { name: "starred", label: "Favorita", plural: "Favoritas" },
+  { name: "review_later", label: "Rever depois", plural: "Rever depois" },
+  { name: "difficult", label: "Difícil", plural: "Difíceis" },
+];
 
 export function lessonPath(courseId: number, lessonId: number): string {
   return `/courses/${courseId}/lessons/${lessonId}`;
@@ -52,7 +62,7 @@ function patchCourseLesson(
   queryClient: QueryClient,
   courseId: number,
   lessonId: number,
-  completed: boolean,
+  patch: Partial<LessonSummary>,
 ) {
   queryClient.setQueryData<CourseDetail>(courseKeys.detail(courseId), (course) =>
     course
@@ -61,7 +71,7 @@ function patchCourseLesson(
           modules: course.modules.map((module) => ({
             ...module,
             lessons: module.lessons.map((lesson) =>
-              lesson.id === lessonId ? { ...lesson, completed } : lesson,
+              lesson.id === lessonId ? { ...lesson, ...patch } : lesson,
             ),
           })),
         }
@@ -86,12 +96,12 @@ export function useSetCompleted(lesson: Pick<LessonDetail, "id" | "course">) {
       await queryClient.cancelQueries({ queryKey: lessonKeys.detail(id) });
       const previous = queryClient.getQueryData<LessonDetail>(lessonKeys.detail(id));
       patchLessonProgress(queryClient, id, { completed });
-      patchCourseLesson(queryClient, courseId, id, completed);
+      patchCourseLesson(queryClient, courseId, id, { completed });
       return { previous };
     },
     onError: (_error, completed, context) => {
       if (context?.previous) queryClient.setQueryData(lessonKeys.detail(id), context.previous);
-      patchCourseLesson(queryClient, courseId, id, !completed);
+      patchCourseLesson(queryClient, courseId, id, { completed: !completed });
     },
     onSuccess: (progress) => patchLessonProgress(queryClient, id, progress),
     onSettled: () => {
@@ -150,6 +160,78 @@ export function useUpdatePreferences() {
   return useMutation({
     mutationFn: (body: components["schemas"]["PatchedStudyPreferencesRequest"]) =>
       unwrap(api.PATCH("/api/preferences", { body })),
-    onSuccess: (preferences) => queryClient.setQueryData(lessonKeys.preferences, preferences),
+    onSuccess: (preferences) => {
+      queryClient.setQueryData(lessonKeys.preferences, preferences);
+      // The goals are part of the dashboard stats.
+      void queryClient.invalidateQueries({ queryKey: statsKeys.all, exact: true });
+    },
+  });
+}
+
+/** Star / "rever depois" / "difícil". Optimistic, like completing a lesson. */
+export function useSetMarks(lesson: Pick<LessonDetail, "id" | "course">) {
+  const queryClient = useQueryClient();
+  const { id } = lesson;
+  const courseId = lesson.course.id;
+
+  return useMutation({
+    mutationFn: (marks: Partial<LessonMarks>) =>
+      unwrap(api.PATCH("/api/lessons/{id}/marks", { params: { path: { id } }, body: marks })),
+    onMutate: async (marks) => {
+      await queryClient.cancelQueries({ queryKey: lessonKeys.detail(id) });
+      const previous = queryClient.getQueryData<LessonDetail>(lessonKeys.detail(id));
+      patchLessonProgress(queryClient, id, marks);
+      patchCourseLesson(queryClient, courseId, id, marks);
+      return { previous };
+    },
+    onError: (_error, _marks, context) => {
+      if (!context?.previous) return;
+      queryClient.setQueryData(lessonKeys.detail(id), context.previous);
+      const before = context.previous.progress;
+      patchCourseLesson(queryClient, courseId, id, {
+        starred: before.starred,
+        review_later: before.review_later,
+        difficult: before.difficult,
+      });
+    },
+    onSuccess: (progress) => patchLessonProgress(queryClient, id, progress),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: lessonKeys.marked }),
+  });
+}
+
+export function useMarked() {
+  return useQuery({
+    queryKey: lessonKeys.marked,
+    queryFn: () => unwrap(api.GET("/api/marked")),
+    staleTime: 0,
+  });
+}
+
+/** Removes one mark from the "Marcadas" page (no lesson detail in the cache there). */
+export function useUnmark() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mark }: { id: number; mark: MarkName }) =>
+      unwrap(
+        api.PATCH("/api/lessons/{id}/marks", {
+          params: { path: { id } },
+          body: { [mark]: false },
+        }),
+      ),
+    onMutate: async ({ id, mark }) => {
+      await queryClient.cancelQueries({ queryKey: lessonKeys.marked });
+      const previous = queryClient.getQueryData<MarkedLesson[]>(lessonKeys.marked);
+      queryClient.setQueryData<MarkedLesson[]>(lessonKeys.marked, (lessons) =>
+        lessons?.map((lesson) => (lesson.id === id ? { ...lesson, [mark]: false } : lesson)),
+      );
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(lessonKeys.marked, context.previous);
+    },
+    onSettled: (_data, _error, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: lessonKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: courseKeys.all });
+    },
   });
 }

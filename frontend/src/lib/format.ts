@@ -41,3 +41,32 @@ export function formatRelative(iso: string | null | undefined): string {
 export function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
+
+// API dates are plain "YYYY-MM-DD" (local study days); build them at local noon so the
+// browser's time zone can't shift them to the previous day.
+export const parseDay = (iso: string) => new Date(`${iso}T12:00:00`);
+
+const shortDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
+const longDate = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/** "15/12" */
+export function formatShortDate(iso: string | null | undefined): string {
+  return iso ? shortDate.format(parseDay(iso)) : "";
+}
+
+/** "15 de dezembro de 2026" */
+export function formatLongDate(iso: string | null | undefined): string {
+  return iso ? longDate.format(parseDay(iso)) : "";
+}
+
+/** Today as "YYYY-MM-DD" in the browser's time zone (for date inputs). */
+export function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}

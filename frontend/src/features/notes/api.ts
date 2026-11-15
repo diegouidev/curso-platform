@@ -37,6 +37,8 @@ export async function saveNote(
     }),
   );
   queryClient.setQueryData(noteKeys.detail(lessonId), note);
+  // Cards written in the note ("P:" / "R:") feed the review page.
+  void queryClient.invalidateQueries({ queryKey: ["review"] });
   // The note indicator in the course page and the player outline.
   queryClient.setQueryData<CourseDetail>(courseKeys.detail(courseId), (course) =>
     course

@@ -77,7 +77,7 @@ export function CompletionSettingsCard() {
                 onChange={(event) =>
                   save({ suggest_completion_percent: Number(event.target.value) })
                 }
-                className="h-8 rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30"
+                className="h-10 rounded-lg border border-input bg-background px-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 sm:h-8 sm:text-sm dark:bg-input/30"
               >
                 {PERCENT_OPTIONS.map((percent) => (
                   <option key={percent} value={percent}>

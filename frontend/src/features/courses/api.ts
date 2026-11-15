@@ -10,10 +10,15 @@ export type LessonSummary = components["schemas"]["LessonSummary"];
 export type Attachment = components["schemas"]["Attachment"];
 export type ImportJob = components["schemas"]["ImportJob"];
 export type Progress = components["schemas"]["Progress"];
+export type CoursePlan = components["schemas"]["CoursePlan"];
+export type CourseRecap = components["schemas"]["CourseRecap"];
+export type Notebook = components["schemas"]["Notebook"];
 
 export const courseKeys = {
   all: ["courses"] as const,
   detail: (id: number) => ["courses", id] as const,
+  recap: (id: number) => ["courses", id, "recap"] as const,
+  notebook: (id: number) => ["courses", id, "notebook"] as const,
   job: (id: number) => ["import-jobs", id] as const,
 };
 
@@ -64,6 +69,35 @@ export function useSyncCourse(id: number) {
   return useMutation({
     mutationFn: () => unwrap(api.POST("/api/courses/{id}/sync", { params: { path: { id } } })),
     onSettled: () => queryClient.invalidateQueries({ queryKey: courseKeys.all }),
+  });
+}
+
+/** Dismisses the "new lessons" notice of a course. */
+export function useMarkSeen(id: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unwrap(api.POST("/api/courses/{id}/mark-seen", { params: { path: { id } } })),
+    onSuccess: (course) => {
+      queryClient.setQueryData(courseKeys.detail(id), course);
+      void queryClient.invalidateQueries({ queryKey: courseKeys.all, exact: true });
+    },
+  });
+}
+
+export function useCourseRecap(id: number, enabled = true) {
+  return useQuery({
+    queryKey: courseKeys.recap(id),
+    queryFn: () => unwrap(api.GET("/api/courses/{id}/recap", { params: { path: { id } } })),
+    enabled,
+    staleTime: 0,
+  });
+}
+
+export function useNotebook(id: number) {
+  return useQuery({
+    queryKey: courseKeys.notebook(id),
+    queryFn: () => unwrap(api.GET("/api/courses/{id}/notebook", { params: { path: { id } } })),
+    staleTime: 0,
   });
 }
 

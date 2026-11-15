@@ -1,8 +1,9 @@
 import {
+  Bookmark,
   CheckCircle2,
   ChevronRight,
-  Circle,
   CloudOff,
+  Flag,
   NotebookPen,
   Paperclip,
   type LucideIcon,
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { lessonPath } from "@/features/lessons/api";
 import { AttachmentList } from "@/features/lessons/attachment-list";
+import { LessonStatusIcon, NewBadge, StarMark } from "@/features/lessons/lesson-status";
 import { formatClock, formatDuration, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -252,19 +254,28 @@ function LessonRow({
       <Link
         href={lessonPath(courseId, lesson.id)}
         className={cn(
-          "group flex items-center gap-3 px-4 py-2.5 text-sm no-underline! outline-none hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-5",
+          "group flex min-h-11 items-center gap-3 px-4 py-2.5 text-sm no-underline! outline-none hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:min-h-0 sm:px-5",
           lesson.missing_in_drive && "text-muted-foreground",
           className,
         )}
       >
-        {lesson.completed ? (
-          <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        ) : (
-          <Circle className="size-4 shrink-0 text-muted-foreground/60" />
-        )}
-        <span className="sr-only">{lesson.completed ? "Concluída:" : "Não concluída:"}</span>
+        <LessonStatusIcon lesson={lesson} />
         <span className="min-w-0 flex-1 truncate">{lesson.title}</span>
+        {lesson.is_new && <NewBadge />}
         {lesson.missing_in_drive && <MissingBadge />}
+        {lesson.starred && <StarMark />}
+        {lesson.review_later && (
+          <Bookmark
+            className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400"
+            aria-label="Rever depois"
+          />
+        )}
+        {lesson.difficult && (
+          <Flag
+            className="size-3.5 shrink-0 text-rose-600 dark:text-rose-400"
+            aria-label="Difícil"
+          />
+        )}
         {lesson.has_note && (
           <NotebookPen
             className="size-3.5 shrink-0 text-muted-foreground"
@@ -272,14 +283,14 @@ function LessonRow({
           />
         )}
         {lesson.attachments.length > 0 && (
-          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+          <span className="hidden items-center gap-0.5 text-xs text-muted-foreground sm:flex">
             <Paperclip className="size-3.5" aria-hidden />
             <span className="sr-only">Anexos:</span>
             {lesson.attachments.length}
           </span>
         )}
         {lesson.duration_seconds != null && (
-          <span className="w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground tabular-nums sm:w-14">
             {formatClock(lesson.duration_seconds)}
           </span>
         )}

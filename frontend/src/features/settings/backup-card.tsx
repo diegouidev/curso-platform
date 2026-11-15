@@ -19,23 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { ApiError, apiFetch } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
+import { downloadFile } from "@/lib/download";
 import { plural } from "@/lib/format";
 
 type RestoreStats = components["schemas"]["RestoreStats"];
 
-async function download(type: "json" | "md") {
-  const response = await apiFetch(`/api/export?type=${type}`);
-  if (!response.ok) throw new ApiError(response.status, null);
-  const disposition = response.headers.get("Content-Disposition") ?? "";
-  const filename =
-    /filename="([^"]+)"/.exec(disposition)?.[1] ?? (type === "md" ? "anotacoes.md" : "backup.json");
-  const url = URL.createObjectURL(await response.blob());
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+const download = (type: "json" | "md") =>
+  downloadFile(`/api/export?type=${type}`, type === "md" ? "anotacoes.md" : "backup.json");
 
 export function BackupCard() {
   const queryClient = useQueryClient();
@@ -183,6 +173,9 @@ function RestoreResult({ stats }: { stats: RestoreStats }) {
           {plural(stats.progress_updated, "progresso atualizado", "progressos atualizados")} ·{" "}
           {plural(stats.notes_restored, "anotação restaurada", "anotações restauradas")} ·{" "}
           {plural(stats.sessions_added, "sessão de estudo", "sessões de estudo")}
+          {stats.cards_restored
+            ? ` · ${plural(stats.cards_restored, "cartão com revisões", "cartões com revisões")}`
+            : ""}
           {stats.preferences_restored ? " · preferências restauradas" : ""}
         </p>
         {stats.courses_not_found.length > 0 && (

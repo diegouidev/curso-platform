@@ -1,16 +1,19 @@
-import { BookOpen, Clock, Loader2 } from "lucide-react";
+import { BookOpen, Clock, Loader2, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatDuration, plural } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 import { isJobActive, type Course } from "./api";
+import { planSummary } from "./plan-card";
 
 export function CourseCard({ course }: { course: Course }) {
   const { progress } = course;
   const remaining = progress.lessons_total - progress.lessons_completed;
   const importing = isJobActive(course.latest_job);
+  const plan = planSummary(course.plan);
 
   return (
     <Link
@@ -28,10 +31,17 @@ export function CourseCard({ course }: { course: Course }) {
         ) : (
           <BookOpen className="size-10 text-muted-foreground/60" aria-hidden />
         )}
-        {importing && (
+        {importing ? (
           <Badge variant="secondary" className="absolute top-3 left-3 gap-1">
             <Loader2 className="size-3 animate-spin" /> Importando
           </Badge>
+        ) : (
+          course.new_lessons > 0 && (
+            <Badge className="absolute top-3 left-3 gap-1 bg-sky-700 text-white">
+              <Sparkles className="size-3" aria-hidden />
+              {course.new_lessons === 1 ? "1 aula nova" : `${course.new_lessons} aulas novas`}
+            </Badge>
+          )
         )}
         {course.is_archived && (
           <Badge variant="outline" className="absolute top-3 right-3 bg-background/80">
@@ -40,9 +50,28 @@ export function CourseCard({ course }: { course: Course }) {
         )}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-4">
-        <h3 className="line-clamp-2 leading-snug font-medium group-hover:underline">
-          {course.title}
-        </h3>
+        <div className="grid gap-1.5">
+          <h3 className="line-clamp-2 leading-snug font-medium group-hover:underline">
+            {course.title}
+          </h3>
+          {course.tags.length > 0 && (
+            <p className="flex flex-wrap gap-1">
+              {course.tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-muted px-2 py-px text-xs text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+              {course.tags.length > 3 && (
+                <span className="px-1 text-xs text-muted-foreground">
+                  +{course.tags.length - 3}
+                </span>
+              )}
+            </p>
+          )}
+        </div>
         <div className="mt-auto grid gap-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
@@ -66,6 +95,17 @@ export function CourseCard({ course }: { course: Course }) {
                   {formatDuration(progress.duration_remaining_seconds)} restantes
                 </span>
               )}
+            </p>
+          )}
+          {plan && (
+            <p
+              className={cn(
+                "flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                plan.tone,
+              )}
+            >
+              <Target className="size-3" aria-hidden />
+              {plan.text}
             </p>
           )}
         </div>

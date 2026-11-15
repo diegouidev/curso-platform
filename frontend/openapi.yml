@@ -159,6 +159,70 @@ paths:
               schema:
                 $ref: '#/components/schemas/CourseDetail'
           description: ''
+  /api/courses/{id}/mark-seen:
+    post:
+      operationId: courses_mark_seen_create
+      description: 'Dismisses the "new lessons" notice: lessons added so far stop
+        being new.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/courses/{id}/notebook:
+    get:
+      operationId: courses_notebook_retrieve
+      description: Every note of the course, in course order, to read (or print) in
+        one page.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notebook'
+          description: ''
+  /api/courses/{id}/recap:
+    get:
+      operationId: courses_recap_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - courses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseRecap'
+          description: ''
   /api/courses/{id}/reset-order:
     post:
       operationId: courses_reset_order_create
@@ -280,6 +344,11 @@ paths:
     get:
       operationId: export_retrieve
       parameters:
+      - in: query
+        name: course
+        schema:
+          type: integer
+        description: 'md only: notes of this course.'
       - in: query
         name: type
         schema:
@@ -544,6 +613,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/LessonProgress'
           description: ''
+  /api/lessons/{id}/marks:
+    patch:
+      operationId: lessons_marks_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - lessons
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLessonMarksRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLessonMarksRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLessonMarksRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LessonProgress'
+          description: ''
   /api/lessons/{id}/note:
     get:
       operationId: lessons_note_retrieve
@@ -594,6 +694,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Note'
+          description: ''
+  /api/marked:
+    get:
+      operationId: marked_list
+      parameters:
+      - in: query
+        name: mark
+        schema:
+          type: string
+          enum:
+          - difficult
+          - review_later
+          - starred
+        description: 'Only this mark (default: any).'
+      tags:
+      - lessons
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MarkedLesson'
           description: ''
   /api/modules/{id}:
     patch:
@@ -664,6 +790,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/StudyPreferences'
           description: ''
+  /api/reminders/test:
+    post:
+      operationId: reminders_test_create
+      tags:
+      - preferences
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderTest'
+          description: ''
+        '400':
+          description: No channel.
   /api/reorder:
     post:
       operationId: reorder_create
@@ -686,6 +828,59 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/review:
+    get:
+      operationId: review_retrieve
+      description: 'Today''s review session: the due cards, the most overdue first.'
+      parameters:
+      - in: query
+        name: course
+        schema:
+          type: integer
+        description: Only cards of this course.
+      tags:
+      - review
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSession'
+          description: ''
+  /api/review/cards/{id}:
+    post:
+      operationId: review_cards_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - review
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewAnswerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewAnswerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewAnswerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewCard'
+          description: ''
   /api/search:
     get:
       operationId: search_retrieve
@@ -719,6 +914,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StudyStats'
+          description: ''
+  /api/stats/calendar:
+    get:
+      operationId: stats_calendar_retrieve
+      tags:
+      - stats
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyCalendar'
           description: ''
 components:
   schemas:
@@ -770,6 +979,30 @@ components:
           description: JSON exported by GET /api/export.
       required:
       - file
+    CardLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        course_id:
+          type: integer
+          readOnly: true
+        course_title:
+          type: string
+          readOnly: true
+        module_title:
+          type: string
+          readOnly: true
+      required:
+      - course_id
+      - course_title
+      - id
+      - module_title
+      - title
     Continue:
       type: object
       properties:
@@ -834,6 +1067,9 @@ components:
         * `start` - Primeira aula, nada aberto ainda
     Course:
       type: object
+      description: |-
+        Expects the with_progress() annotations. `plans` in the context (course id -> plan)
+        avoids one query per course in lists.
       properties:
         id:
           type: integer
@@ -877,9 +1113,28 @@ components:
           type: string
           format: date-time
           readOnly: true
+        tags:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        target_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+          description: The day the user wants to finish the course by.
+        new_lessons:
+          type: integer
+          readOnly: true
+          description: Lessons added by syncs since the last 'seen', not opened.
         progress:
           allOf:
           - $ref: '#/components/schemas/Progress'
+          readOnly: true
+        plan:
+          allOf:
+          - $ref: '#/components/schemas/CoursePlan'
           readOnly: true
         latest_job:
           allOf:
@@ -897,12 +1152,19 @@ components:
       - is_archived
       - last_imported_at
       - latest_job
+      - new_lessons
+      - plan
       - progress
+      - tags
+      - target_date
       - thumbnail_url
       - title
       - title_is_custom
     CourseDetail:
       type: object
+      description: |-
+        Expects the with_progress() annotations. `plans` in the context (course id -> plan)
+        avoids one query per course in lists.
       properties:
         id:
           type: integer
@@ -946,9 +1208,28 @@ components:
           type: string
           format: date-time
           readOnly: true
+        tags:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        target_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+          description: The day the user wants to finish the course by.
+        new_lessons:
+          type: integer
+          readOnly: true
+          description: Lessons added by syncs since the last 'seen', not opened.
         progress:
           allOf:
           - $ref: '#/components/schemas/Progress'
+          readOnly: true
+        plan:
+          allOf:
+          - $ref: '#/components/schemas/CoursePlan'
           readOnly: true
         latest_job:
           allOf:
@@ -972,7 +1253,11 @@ components:
       - last_imported_at
       - latest_job
       - modules
+      - new_lessons
+      - plan
       - progress
+      - tags
+      - target_date
       - thumbnail_url
       - title
       - title_is_custom
@@ -1012,6 +1297,103 @@ components:
       required:
       - course
       - job
+    CoursePlan:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/PlanStatusEnum'
+        target_date:
+          type: string
+          format: date
+          nullable: true
+        days_left:
+          type: integer
+          nullable: true
+          description: Days until the target date, today included; <= 0 when past.
+        lessons_left:
+          type: integer
+        seconds_left:
+          type: integer
+          nullable: true
+        required_lessons_per_day:
+          type: number
+          format: double
+          nullable: true
+        required_seconds_per_day:
+          type: integer
+          nullable: true
+        pace_lessons_per_day:
+          type: number
+          format: double
+          description: Completions per day, recently.
+        pace_seconds_per_day:
+          type: integer
+          nullable: true
+        pace_window_days:
+          type: integer
+        projected_finish:
+          type: string
+          format: date
+          nullable: true
+          description: When the course ends at the recent pace; null with no pace.
+      required:
+      - days_left
+      - lessons_left
+      - pace_lessons_per_day
+      - pace_seconds_per_day
+      - pace_window_days
+      - projected_finish
+      - required_lessons_per_day
+      - required_seconds_per_day
+      - seconds_left
+      - status
+      - target_date
+    CourseRecap:
+      type: object
+      properties:
+        is_complete:
+          type: boolean
+        lessons_total:
+          type: integer
+        lessons_completed:
+          type: integer
+        study_seconds:
+          type: integer
+        days_studied:
+          type: integer
+        started_on:
+          type: string
+          format: date
+          nullable: true
+        finished_on:
+          type: string
+          format: date
+          nullable: true
+        top_lesson:
+          allOf:
+          - $ref: '#/components/schemas/RecapLesson'
+          nullable: true
+          description: Most time on the page.
+        busiest_day:
+          allOf:
+          - $ref: '#/components/schemas/RecapDay'
+          nullable: true
+        notes_count:
+          type: integer
+        cards_count:
+          type: integer
+      required:
+      - busiest_day
+      - cards_count
+      - days_studied
+      - finished_on
+      - is_complete
+      - lessons_completed
+      - lessons_total
+      - notes_count
+      - started_on
+      - study_seconds
+      - top_lesson
     CourseRef:
       type: object
       properties:
@@ -1319,10 +1701,22 @@ components:
         time_on_page_seconds:
           type: integer
           readOnly: true
+        starred:
+          type: boolean
+          readOnly: true
+        review_later:
+          type: boolean
+          readOnly: true
+        difficult:
+          type: boolean
+          readOnly: true
       required:
       - completed
       - completed_at
+      - difficult
       - last_opened_at
+      - review_later
+      - starred
       - time_on_page_seconds
     LessonRef:
       type: object
@@ -1380,6 +1774,23 @@ components:
         has_note:
           type: boolean
           readOnly: true
+        watched_seconds:
+          type: integer
+          readOnly: true
+          description: Time with the lesson page visible.
+        starred:
+          type: boolean
+          readOnly: true
+        review_later:
+          type: boolean
+          readOnly: true
+        difficult:
+          type: boolean
+          readOnly: true
+        is_new:
+          type: boolean
+          readOnly: true
+          description: Added by a sync after the last 'seen' and never opened.
         attachments:
           type: array
           items:
@@ -1388,17 +1799,22 @@ components:
       required:
       - attachments
       - completed
+      - difficult
       - drive_file_id
       - drive_name_original
       - duration_seconds
       - has_note
       - id
       - is_hidden
+      - is_new
       - missing_in_drive
       - order
+      - review_later
       - section
+      - starred
       - title
       - title_is_custom
+      - watched_seconds
     LoginRequest:
       type: object
       properties:
@@ -1412,6 +1828,63 @@ components:
       required:
       - password
       - username
+    MarkedLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        section:
+          type: string
+          readOnly: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+          nullable: true
+        missing_in_drive:
+          type: boolean
+          readOnly: true
+        course_id:
+          type: integer
+          readOnly: true
+        course_title:
+          type: string
+          readOnly: true
+        module_title:
+          type: string
+          readOnly: true
+        completed:
+          type: boolean
+          readOnly: true
+        starred:
+          type: boolean
+          readOnly: true
+        review_later:
+          type: boolean
+          readOnly: true
+        difficult:
+          type: boolean
+          readOnly: true
+        has_note:
+          type: boolean
+          readOnly: true
+      required:
+      - completed
+      - course_id
+      - course_title
+      - difficult
+      - duration_seconds
+      - has_note
+      - id
+      - missing_in_drive
+      - module_title
+      - review_later
+      - section
+      - starred
+      - title
     Module:
       type: object
       properties:
@@ -1475,7 +1948,13 @@ components:
           readOnly: true
           nullable: true
           description: Null when nothing was written yet.
+        cards:
+          type: integer
+          readOnly: true
+          default: 0
+          description: 'Review cards (P:/R: pairs) in the note.'
       required:
+      - cards
       - content
       - updated_at
     NoteRequest:
@@ -1487,6 +1966,64 @@ components:
           maxLength: 100000
       required:
       - content
+    Notebook:
+      type: object
+      properties:
+        course:
+          $ref: '#/components/schemas/Ref'
+        notes:
+          type: integer
+        modules:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotebookModule'
+          description: Only modules with notes.
+      required:
+      - course
+      - modules
+      - notes
+    NotebookLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        section:
+          type: string
+        drive_url:
+          type: string
+          description: Drive viewer (accepts ?t=<seconds>s).
+        completed:
+          type: boolean
+        content:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - completed
+      - content
+      - drive_url
+      - id
+      - section
+      - title
+      - updated_at
+    NotebookModule:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        lessons:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotebookLesson'
+      required:
+      - id
+      - lessons
+      - title
     NullEnum:
       enum:
       - null
@@ -1504,6 +2041,18 @@ components:
         clean_titles:
           type: boolean
           description: Tidy Drive names into titles (extension, underscores...).
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 40
+          description: Replaces the course tags; new names create tags.
+          maxItems: 12
+        target_date:
+          type: string
+          format: date
+          nullable: true
+          description: The day the user wants to finish the course by.
     PatchedItemUpdateRequest:
       type: object
       properties:
@@ -1512,6 +2061,15 @@ components:
           description: Empty string restores the title derived from the Drive name.
           maxLength: 500
         is_hidden:
+          type: boolean
+    PatchedLessonMarksRequest:
+      type: object
+      properties:
+        starred:
+          type: boolean
+        review_later:
+          type: boolean
+        difficult:
           type: boolean
     PatchedStudyPreferencesRequest:
       type: object
@@ -1524,6 +2082,39 @@ components:
           maximum: 100
           minimum: 50
           description: Time on the page, as a percentage of the video duration.
+        daily_goal_minutes:
+          type: integer
+          maximum: 720
+          minimum: 0
+          description: 0 = no daily goal.
+        weekly_goal_minutes:
+          type: integer
+          maximum: 5040
+          minimum: 0
+          description: 0 = no weekly goal.
+        reminder_enabled:
+          type: boolean
+          description: Send a reminder when nothing was studied by reminder_time.
+        reminder_time:
+          type: string
+          format: time
+        auto_sync:
+          type: boolean
+          description: Sync every active course with the Drive once a day.
+    PlanStatusEnum:
+      enum:
+      - done
+      - no_target
+      - on_track
+      - behind
+      - overdue
+      type: string
+      description: |-
+        * `done` - Curso concluído
+        * `no_target` - Sem prazo definido
+        * `on_track` - No ritmo para terminar no prazo
+        * `behind` - Abaixo do ritmo necessário
+        * `overdue` - Prazo vencido
     Progress:
       type: object
       properties:
@@ -1548,6 +2139,30 @@ components:
       - lessons_completed
       - lessons_total
       - percent
+    RecapDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        study_seconds:
+          type: integer
+      required:
+      - date
+      - study_seconds
+    RecapLesson:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        seconds:
+          type: integer
+      required:
+      - id
+      - seconds
+      - title
     Ref:
       type: object
       properties:
@@ -1558,6 +2173,28 @@ components:
       required:
       - id
       - title
+    ReminderChannelsEnum:
+      enum:
+      - telegram
+      - email
+      type: string
+      description: |-
+        * `telegram` - telegram
+        * `email` - email
+    ReminderTest:
+      type: object
+      properties:
+        sent:
+          type: array
+          items:
+            type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - errors
+      - sent
     ReorderKindEnum:
       enum:
       - modules
@@ -1597,6 +2234,8 @@ components:
           type: integer
         sessions_added:
           type: integer
+        cards_restored:
+          type: integer
         preferences_restored:
           type: boolean
         courses_not_found:
@@ -1605,6 +2244,7 @@ components:
             type: string
           description: Titles of courses not imported here yet.
       required:
+      - cards_restored
       - courses_not_found
       - lessons_matched
       - lessons_not_found
@@ -1612,6 +2252,100 @@ components:
       - preferences_restored
       - progress_updated
       - sessions_added
+    ReviewAnswerRequest:
+      type: object
+      properties:
+        rating:
+          $ref: '#/components/schemas/ReviewRatingEnum'
+      required:
+      - rating
+    ReviewCard:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question:
+          type: string
+          readOnly: true
+        answer:
+          type: string
+          readOnly: true
+        due_on:
+          type: string
+          format: date
+          readOnly: true
+        interval_days:
+          type: integer
+          readOnly: true
+        repetitions:
+          type: integer
+          readOnly: true
+        lapses:
+          type: integer
+          readOnly: true
+        last_reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        lesson:
+          allOf:
+          - $ref: '#/components/schemas/CardLesson'
+          readOnly: true
+      required:
+      - answer
+      - due_on
+      - id
+      - interval_days
+      - lapses
+      - last_reviewed_at
+      - lesson
+      - question
+      - repetitions
+    ReviewRatingEnum:
+      enum:
+      - again
+      - hard
+      - good
+      - easy
+      type: string
+      description: |-
+        * `again` - Errei
+        * `hard` - Difícil
+        * `good` - Bom
+        * `easy` - Fácil
+    ReviewSession:
+      type: object
+      properties:
+        due:
+          type: integer
+          description: Cards due today or earlier.
+        new:
+          type: integer
+          description: Due cards never reviewed.
+        total:
+          type: integer
+          description: Every card.
+        reviewed_today:
+          type: integer
+        next_due_on:
+          type: string
+          format: date
+          nullable: true
+          description: Next day after today with cards due.
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewCard'
+          description: Due cards, the most overdue first.
+      required:
+      - cards
+      - due
+      - new
+      - next_due_on
+      - reviewed_today
+      - total
     SearchCourse:
       type: object
       properties:
@@ -1723,6 +2457,32 @@ components:
       - lessons
       - notes
       - query
+    StudyCalendar:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: A Monday, 52 weeks before the current week.
+        end:
+          type: string
+          format: date
+          description: Today.
+        days_studied:
+          type: integer
+        study_seconds:
+          type: integer
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudyDay'
+          description: Only days with activity, oldest first.
+      required:
+      - days
+      - days_studied
+      - end
+      - start
+      - study_seconds
     StudyDay:
       type: object
       properties:
@@ -1748,6 +2508,33 @@ components:
           maximum: 100
           minimum: 50
           description: Time on the page, as a percentage of the video duration.
+        daily_goal_minutes:
+          type: integer
+          maximum: 720
+          minimum: 0
+          description: 0 = no daily goal.
+        weekly_goal_minutes:
+          type: integer
+          maximum: 5040
+          minimum: 0
+          description: 0 = no weekly goal.
+        reminder_enabled:
+          type: boolean
+          description: Send a reminder when nothing was studied by reminder_time.
+        reminder_time:
+          type: string
+          format: time
+        reminder_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReminderChannelsEnum'
+          readOnly: true
+          description: Reminder channels configured on the server (environment variables).
+        auto_sync:
+          type: boolean
+          description: Sync every active course with the Drive once a day.
+      required:
+      - reminder_channels
     StudyStats:
       type: object
       properties:
@@ -1762,10 +2549,18 @@ components:
           type: integer
         completed_total:
           type: integer
+        study_seconds_today:
+          type: integer
         study_seconds_this_week:
           type: integer
         study_seconds_total:
           type: integer
+        daily_goal_minutes:
+          type: integer
+          description: 0 = no goal.
+        weekly_goal_minutes:
+          type: integer
+          description: 0 = no goal.
         streak_days:
           type: integer
           description: Consecutive study days ending today (or yesterday, until today
@@ -1782,14 +2577,17 @@ components:
       required:
       - completed_this_week
       - completed_total
+      - daily_goal_minutes
       - longest_streak_days
       - recent_days
       - streak_days
       - studied_today
       - study_seconds_this_week
+      - study_seconds_today
       - study_seconds_total
       - today
       - week_start
+      - weekly_goal_minutes
     ThumbnailUploadRequest:
       type: object
       properties:
