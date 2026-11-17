@@ -182,6 +182,13 @@ de bootstrap do Next. Se for preciso endurecer, a evolução natural é usar non
   pela largura, não pela altura do iframe, então uma caixa 16:9 (ou 16:9 + 3rem) cortava os
   controles. Telas estreitas (`max-sm`) e telas de toque até a largura de tablet
   (`max-lg` + `pointer-coarse`) usam **16:9 + 6rem**; a sobra embaixo é preta.
+- **iPhone e iPad (WebKit, inclusive o Chrome do iOS):** o embed do Drive é outro. O `<video>`
+  ocupa o iframe inteiro, com a imagem centralizada e os controles nativos do iOS por cima
+  dos do Drive. A faixa extra só acrescentava preto e espalhava os controles, por isso o
+  padrão no iOS é **16:9** exato. O simulador de celular do Chrome no PC não reproduz isso
+  (ele continua sendo Blink). Em tela de toque aparece um seletor **Formato do player**
+  (16:9, 4:3, Alto), lembrado por aparelho no `localStorage`. No iPhone, uma dica aponta o
+  botão de tela cheia do próprio vídeo, que abre o player nativo do iOS.
 - **Tela cheia** (botão abaixo do vídeo e atalho `F`) atua na caixa do player, não no
   iframe: (1) Fullscreen API quando o navegador oferece (desktop, Android, iPad), tentando
   travar em paisagem no Android; (2) no iPhone, onde o Safari não tem tela cheia de

@@ -1,3 +1,5 @@
+import { devices } from "@playwright/test";
+
 import { expect, lessonUrl, test } from "./fixtures";
 
 const noHorizontalScroll = () =>
@@ -116,4 +118,26 @@ test("no celular a navegação fica numa barra de abas embaixo", async ({ page, 
 
   await tabs.getByRole("link", { name: "Marcadas" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Aulas marcadas" })).toBeVisible();
+});
+
+test.describe("iPhone (todo navegador no iOS é WebKit)", () => {
+  const iphone = devices["iPhone 8 Plus"];
+  test.use({ userAgent: iphone.userAgent, viewport: iphone.viewport });
+
+  test("o player começa em 16:9 e o formato escolhido fica salvo", async ({ page, seed }) => {
+    const s = await seed();
+    await page.goto(lessonUrl(s, "01 - Introdução"));
+    const box = page.locator('[data-fullscreen="off"]');
+    // On iOS the Drive <video> fills the iframe: a plain 16:9 box, no extra band.
+    await expect(box).toHaveAttribute("data-shape", "wide");
+    const { width, height } = (await box.boundingBox())!;
+    expect(Math.abs(height - width * 0.5625)).toBeLessThan(2);
+    await expect(page.getByText(/No iPhone, o botão de tela cheia do próprio vídeo/)).toBeVisible();
+
+    await page.getByRole("radio", { name: /^Alto/ }).click();
+    await expect(box).toHaveAttribute("data-shape", "tall");
+    await page.reload();
+    await expect(page.locator('[data-fullscreen="off"]')).toHaveAttribute("data-shape", "tall");
+    await expect(page.getByRole("radio", { name: /^Alto/ })).toHaveAttribute("aria-checked", "true");
+  });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Maximize, Minimize } from "lucide-react";
+import { Loader2, Maximize, Maximize2, Minimize } from "lucide-react";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
 import { usePlayerFullscreen } from "./use-player-fullscreen";
+import { PLAYER_SHAPES, usePlayerShape, type PlayerShape } from "./use-player-shape";
 import { VideoHelp } from "./video-help";
 
 // After this long without the iframe's load event, the help hint gets more prominent.
@@ -25,16 +26,22 @@ type Props = {
 };
 
 /*
- * On phones the Drive embed renders its mobile layout: a ~50px bar above the 16:9 video and
- * a row of control "pills" (play, time, settings, fullscreen) that reaches ~30px below the
- * video. That layout is sized by the width, not by the iframe height, so a 16:9 box (or
- * 16:9 + 3rem) cuts the controls off. Narrow screens and touch screens up to tablet width get
- * 16:9 + 6rem; the spare space at the bottom is just black.
+ * On Android phones (Blink) the Drive embed renders its mobile layout: a ~50px bar above the
+ * 16:9 video and a row of control "pills" (play, time, settings, fullscreen) that reaches
+ * ~30px below the video. That layout is sized by the width, not by the iframe height, so a
+ * 16:9 box (or 16:9 + 3rem) cuts the controls off. Narrow screens and touch screens up to
+ * tablet width get 16:9 + 6rem by default; the spare space at the bottom is just black.
+ * iPhones (WebKit) lay it out differently: see use-player-shape.ts.
  */
-const INLINE_BOX =
-  "relative aspect-video overflow-hidden rounded-xl ring-1 ring-foreground/10 " +
-  "max-sm:aspect-auto max-sm:pt-[calc(56.25%+6rem)] " +
+const BOX = "relative overflow-hidden rounded-xl ring-1 ring-foreground/10";
+const DEFAULT_SHAPE =
+  "aspect-video max-sm:aspect-auto max-sm:pt-[calc(56.25%+6rem)] " +
   "max-lg:pointer-coarse:aspect-auto max-lg:pointer-coarse:pt-[calc(56.25%+6rem)]";
+const SHAPE_CLASSES: Record<PlayerShape, string> = {
+  wide: "aspect-video",
+  classic: "aspect-[4/3]",
+  tall: "aspect-auto pt-[calc(56.25%+6rem)]",
+};
 // Native fullscreen or the iPhone fallback: the same box pinned over the whole viewport.
 const FULLSCREEN_BOX = "fixed inset-0 z-[100] h-dvh w-full";
 
@@ -53,6 +60,7 @@ export function VideoPlayer({ embedUrl, driveUrl, title, iframeRef, controlsRef 
   const enterButtonRef = useRef<HTMLButtonElement>(null);
   const exitButtonRef = useRef<HTMLButtonElement>(null);
   const fullscreen = usePlayerFullscreen(boxRef);
+  const { shape, appleMobile, setShape } = usePlayerShape();
 
   useImperativeHandle(controlsRef, () => ({ toggleFullscreen: fullscreen.toggle }), [
     fullscreen.toggle,
@@ -78,7 +86,12 @@ export function VideoPlayer({ embedUrl, driveUrl, title, iframeRef, controlsRef 
       <div
         ref={boxRef}
         data-fullscreen={fullscreen.mode}
-        className={cn("bg-black", fullscreen.active ? FULLSCREEN_BOX : INLINE_BOX)}
+        data-shape={shape ?? "default"}
+        className={cn(
+          "bg-black",
+          fullscreen.active ? FULLSCREEN_BOX : BOX,
+          !fullscreen.active && (shape ? SHAPE_CLASSES[shape] : DEFAULT_SHAPE),
+        )}
       >
         {!loaded && (
           <div
@@ -137,6 +150,62 @@ export function VideoPlayer({ embedUrl, driveUrl, title, iframeRef, controlsRef 
           </Button>
         }
       />
+      <ShapePicker
+        // Phones and tablets only: on a mouse-driven screen the 16:9 desktop layout is right.
+        className="pointer-fine:hidden"
+        value={shape ?? (appleMobile ? "wide" : "tall")}
+        onChange={setShape}
+      />
+      {appleMobile && (
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <Maximize2 className="mt-px size-3.5 shrink-0" aria-hidden />
+          No iPhone, o botão de tela cheia do próprio vídeo (no canto superior esquerdo, ao tocar no
+          vídeo) abre o player do iOS, o mais estável. Se os controles ficarem embaralhados,
+          experimente outro formato acima.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Lets the phone owner pick the box shape that suits how the Drive embed renders there. */
+function ShapePicker({
+  value,
+  onChange,
+  className,
+}: {
+  value: PlayerShape;
+  onChange: (shape: PlayerShape) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2 text-xs", className)}>
+      <span id="formato-player" className="text-muted-foreground">
+        Formato do player
+      </span>
+      <div
+        role="radiogroup"
+        aria-labelledby="formato-player"
+        className="flex rounded-lg border bg-muted/40 p-0.5"
+      >
+        {PLAYER_SHAPES.map((shape) => (
+          <button
+            key={shape.value}
+            type="button"
+            role="radio"
+            aria-checked={value === shape.value}
+            title={shape.description}
+            onClick={() => onChange(shape.value)}
+            className={cn(
+              "h-8 min-w-12 rounded-md px-3 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              value === shape.value && "bg-background font-medium text-foreground shadow-xs",
+            )}
+          >
+            {shape.label}
+            <span className="sr-only">, {shape.description}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
